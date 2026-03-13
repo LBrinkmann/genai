@@ -4,7 +4,13 @@ import Typography from '@mui/material/Typography';
 import ResponseComparison from './ResponseComparison';
 import FeedbackPanel from './FeedbackPanel';
 
-function MessageList({ messages, onSelectResponse }) {
+function MessageList({
+  messages,
+  onSelectResponse,
+  feedbackCategories = [],
+  mainPreferenceFeedback = '',
+  onFeedbackConfirm,
+}) {
   const endRef = useRef(null);
 
   useEffect(() => {
@@ -53,7 +59,6 @@ function MessageList({ messages, onSelectResponse }) {
           );
         }
 
-        // Assistant message with RLHF comparison
         const isComparison = Array.isArray(msg.content);
         if (!isComparison) {
           return (
@@ -92,14 +97,24 @@ function MessageList({ messages, onSelectResponse }) {
               responses={msg.content}
               selected={msg.selected}
               onSelect={
-                msg.selected === null || msg.selected === undefined
+                msg.selected === null ||
+                msg.selected === undefined
                   ? (idx) => onSelectResponse(msg.index, idx)
                   : undefined
               }
             />
             {msg.selected !== null &&
               msg.selected !== undefined && (
-                <FeedbackPanel />
+                <FeedbackPanel
+                  categories={feedbackCategories}
+                  mainPreferenceFeedback={
+                    mainPreferenceFeedback
+                  }
+                  onConfirm={(tags) =>
+                    onFeedbackConfirm &&
+                    onFeedbackConfirm(msg.index, tags)
+                  }
+                />
               )}
           </Box>
         );

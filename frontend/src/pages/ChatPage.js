@@ -1,75 +1,120 @@
-import React, { useState, useCallback } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import Box from '@mui/material/Box';
+import CircularProgress from '@mui/material/CircularProgress';
+import Typography from '@mui/material/Typography';
+import Alert from '@mui/material/Alert';
 import Header from '../components/Header';
 import MessageList from '../components/MessageList';
 import MessageInput from '../components/MessageInput';
-
-const initialMessages = [
-  {
-    role: 'user',
-    content: 'What is machine learning?',
-    index: 0,
-  },
-  {
-    role: 'assistant',
-    content: [
-      {
-        bot: 'Bot A',
-        text: 'Machine learning is a subset of artificial intelligence...',
-      },
-      {
-        bot: 'Bot B',
-        text: 'ML is a field of study that gives computers the ability...',
-      },
-    ],
-    index: 1,
-    selected: 0,
-  },
-  {
-    role: 'user',
-    content: 'Can you give me an example?',
-    index: 2,
-  },
-  {
-    role: 'assistant',
-    content: [
-      {
-        bot: 'Bot A',
-        text: 'A common example is email spam filtering...',
-      },
-      {
-        bot: 'Bot B',
-        text: 'Consider recommendation systems like Netflix...',
-      },
-    ],
-    index: 3,
-    selected: null,
-  },
-];
+import useConfig from '../hooks/useConfig';
+import useSession from '../hooks/useSession';
+import useChat from '../hooks/useChat';
+import { saveMessage } from '../services/api';
 
 function ChatPage() {
-  const [messages, setMessages] = useState(initialMessages);
+  const {
+    config,
+    loading: configLoading,
+    error: configError,
+    configName,
+    accessKey,
+    loggingEnabled,
+  } = useConfig();
 
-  const handleSend = useCallback((text) => {
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: 'user',
-        content: text,
-        index: prev.length,
-      },
-    ]);
-  }, []);
+  const { userId, sessionId, createSession, resetSession } =
+    useSession();
 
-  const handleSelectResponse = useCallback((messageIndex, responseIdx) => {
-    setMessages((prev) =>
-      prev.map((msg) =>
-        msg.index === messageIndex
-          ? { ...msg, selected: responseIdx }
-          : msg
-      )
+  const bots = config?.bots || [];
+  const feedbackCategories =
+    config?.additional_categories || [];
+  const mainPreferenceFeedback =
+    config?.main_preference_feedback || '';
+
+  const {
+    messages,
+    sendMessage,
+    selectResponse,
+    isLoading,
+    clearMessages,
+  } = useChat({
+    bots,
+    sessionId,
+    userId,
+    loggingEnabled,
+  });
+
+  useEffect(() => {
+    if (config && !sessionId) {
+      createSession(configName);
+    }
+  }, [config, sessionId, createSession, configName]);
+
+  const handleReset = useCallback(async () => {
+    clearMessages();
+    await resetSession(configName);
+  }, [clearMessages, resetSession, configName]);
+
+  const handleFeedbackConfirm = useCallback(
+    async (messageIndex, selectedTags) => {
+      if (!loggingEnabled || !sessionId) return;
+      const msg = messages.find(
+        (m) => m.index === messageIndex
+      );
+      if (!msg) return;
+      try {
+        await saveMessage({
+          user_id: userId,
+          session_id: sessionId,
+          index: msg.index,
+          role: msg.role,
+          content: msg.content,
+          bot_ids: msg.bot_ids || [],
+          feedback: selectedTags,
+          selected: msg.selected,
+          timestamp: new Date().toISOString(),
+        });
+      } catch (err) {
+        console.error('Failed to save feedback:', err);
+      }
+    },
+    [loggingEnabled, sessionId, userId, messages]
+  );
+
+  if (configLoading) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+        }}
+      >
+        <CircularProgress />
+      </Box>
     );
-  }, []);
+  }
+
+  if (configError) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+          px: 3,
+        }}
+      >
+        <Alert severity="error" sx={{ maxWidth: 480 }}>
+          <Typography variant="subtitle2">
+            Configuration Error
+          </Typography>
+          <Typography variant="body2">{configError}</Typography>
+        </Alert>
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -80,12 +125,19 @@ function ChatPage() {
         bgcolor: 'background.default',
       }}
     >
-      <Header status="online" />
+      <Header
+        bots={bots}
+        accessKey={accessKey}
+        onReset={handleReset}
+      />
       <MessageList
         messages={messages}
-        onSelectResponse={handleSelectResponse}
+        onSelectResponse={selectResponse}
+        feedbackCategories={feedbackCategories}
+        mainPreferenceFeedback={mainPreferenceFeedback}
+        onFeedbackConfirm={handleFeedbackConfirm}
       />
-      <MessageInput onSend={handleSend} />
+      <MessageInput onSend={sendMessage} disabled={isLoading} />
     </Box>
   );
 }
