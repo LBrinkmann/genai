@@ -1,0 +1,37 @@
+[tool.poetry]
+name = "genai-backend"
+version = "0.1.0"
+description = "GenAI RLHF data collection backend"
+authors = []
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.13"
+fastapi = "^0.115"
+"uvicorn[standard]" = "^0.34"
+sqlalchemy = {version = "^2.0", extras = ["asyncio"]}
+asyncpg = "^0.30"
+httpx = "^0.28"
+pyyaml = "^6.0"
+pydantic = "^2.0"
+python-socketio = "^5.12"
+gunicorn = "^23.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0"
+pytest-asyncio = "^0.25"
+black = "^25.1"
+isort = "^6.0"
+flake8 = "^7.0"
+pre-commit = "^4.0"
+
+[tool.black]
+line-length = 79
+
+[tool.isort]
+profile = "black"
+line_length = 79
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

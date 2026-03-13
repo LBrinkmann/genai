@@ -1,0 +1,42 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - CONFIG_PATH=${CONFIG_PATH}
+      - ACCESS_KEY=${ACCESS_KEY}
+    networks:
+      - genai-net
+
+  frontend:
+    build:
+      context: ./frontend
+    networks:
+      - genai-net
+
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: genai
+      POSTGRES_PASSWORD: genai
+      POSTGRES_DB: genai
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U genai"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - genai-net
+
+volumes:
+  pgdata:
+
+networks:
+  genai-net:
+    driver: bridge
