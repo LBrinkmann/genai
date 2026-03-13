@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
+import CircularProgress from '@mui/material/CircularProgress';
 import SendIcon from '@mui/icons-material/Send';
 
 function MessageInput({ onSend, disabled = false }) {
@@ -50,24 +51,38 @@ function MessageInput({ onSend, disabled = false }) {
             },
           }}
         />
-        <IconButton
-          color="primary"
-          onClick={handleSend}
-          disabled={disabled || !value.trim()}
-          sx={{
-            bgcolor: 'primary.main',
-            color: 'white',
-            '&:hover': { bgcolor: 'primary.dark' },
-            '&.Mui-disabled': {
-              bgcolor: 'action.disabledBackground',
-              color: 'action.disabled',
-            },
-            width: 40,
-            height: 40,
-          }}
-        >
-          <SendIcon fontSize="small" />
-        </IconButton>
+        {disabled ? (
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 40,
+              height: 40,
+            }}
+          >
+            <CircularProgress size={24} />
+          </Box>
+        ) : (
+          <IconButton
+            color="primary"
+            onClick={handleSend}
+            disabled={!value.trim()}
+            sx={{
+              bgcolor: 'primary.main',
+              color: 'white',
+              '&:hover': { bgcolor: 'primary.dark' },
+              '&.Mui-disabled': {
+                bgcolor: 'action.disabledBackground',
+                color: 'action.disabled',
+              },
+              width: 40,
+              height: 40,
+            }}
+          >
+            <SendIcon fontSize="small" />
+          </IconButton>
+        )}
       </Box>
     </Box>
   );
