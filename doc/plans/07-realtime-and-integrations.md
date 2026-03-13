@@ -15,7 +15,7 @@ The primary external integration is with language model inference APIs:
 - **Protocol**: OpenAI-compatible chat completion API (the de facto standard adopted by most LLM providers and self-hosted solutions).
 - **Request Format**: Messages are sent as an array of role/content objects, with the system message injected by the backend.
 - **Response Format**: The backend expects and parses the standard completion response structure, extracting the generated text from the first choice.
-- **Provider Flexibility**: Each bot can be configured to use a different provider, model, and API key. This enables:
+- **Provider Flexibility**: Each bot can be configured (via YAML) to use a different provider, model, and API key. This enables:
   - Comparing commercial models (e.g., different model families or versions)
   - Comparing commercial vs. self-hosted models
   - Testing the same model with different system prompts
@@ -25,4 +25,4 @@ The primary external integration is with language model inference APIs:
 
 ## CORS Configuration
 
-The backend is configured to accept cross-origin requests from any origin, with credentials support enabled. This permissive CORS policy simplifies development and deployment across different domains for the frontend, dashboard, and backend services.
+The backend is configured to accept cross-origin requests from any origin, with credentials support enabled. This permissive CORS policy simplifies development and deployment across different domains for the frontend and backend services.

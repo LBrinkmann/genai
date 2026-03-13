@@ -1,8 +1,8 @@
 # Tech Stack
 
-## Frontend Applications
+## Frontend Application
 
-Two separate single-page applications are built with the same core technology:
+A single-page application for the chat interface:
 
 - **Framework**: React 19 with functional components and hooks
 - **Routing**: React Router v7
@@ -17,6 +17,7 @@ Two separate single-page applications are built with the same core technology:
 - **ASGI Server**: Uvicorn
 - **HTTP Client**: HTTPX for async outbound requests to external LLM APIs
 - **WebSocket Layer**: Python-SocketIO (server-side, partially integrated)
+- **Configuration**: YAML files for bot and feedback scheme definitions, loaded at startup
 - **Dependency Management**: Poetry
 - **Python Version**: 3.13
 
@@ -30,22 +31,22 @@ Two separate single-page applications are built with the same core technology:
 ## External Integrations
 
 - **LLM Providers**: Any OpenAI-compatible chat completion API (configurable per bot — supports OpenAI, self-hosted models, or any provider exposing the same interface)
-- **API Key Management**: Per-bot API keys stored in the database, injected into outbound requests
+- **API Key Management**: Per-bot API keys defined in YAML config, injected into outbound requests by the backend
 
-## Containerization and Orchestration
+## Containerization and Deployment
 
-- **Local Development**: Docker Compose with hot-reload for all services (frontend, dashboard, backend, database)
+- **Local Development**: Docker Compose with hot-reload for all services (frontend, backend, database)
 - **Container Builds**: Multi-stage Dockerfiles with separate development and production stages
-- **Production Web Server**: Nginx serves the built React apps as static files in production
-- **Orchestration**: Kubernetes with Helm charts for production deployment
-- **CI/CD**: GitLab CI with child pipelines per service — builds container images, pushes to a container registry, and deploys via Helm
+- **Production Reverse Proxy**: Caddy — serves the built React app as static files, reverse proxies the API, and auto-provisions TLS certificates via Let's Encrypt
+- **Production Deployment**: Single VPS running Docker Compose (production override file)
+- **CI/CD**: Simple deploy script (`ssh` + `docker compose pull` + `docker compose up -d`) or GitHub Actions
 
 ## Architecture Pattern
 
-The system follows a classic three-tier architecture:
+The system follows a two-tier architecture:
 
-1. **Presentation Layer**: Two React SPAs (chat interface + admin dashboard) communicate with the backend via REST API calls.
-2. **Application Layer**: A FastAPI backend handles business logic, proxies LLM requests, manages sessions, and serves both the chat and admin APIs.
-3. **Data Layer**: PostgreSQL stores all persistent state — messages, sessions, bot configurations, and feedback configurations.
+1. **Presentation Layer**: A React SPA (chat interface) communicates with the backend via REST API calls.
+2. **Application Layer**: A FastAPI backend handles business logic, proxies LLM requests, manages sessions, and loads experiment configuration from YAML files at startup.
+3. **Data Layer**: PostgreSQL stores runtime state — messages and sessions. Static configuration (bots, feedback schemes) lives in YAML files.
 
 The backend acts as a **proxy** between the frontend and external LLM providers. The frontend never calls LLM APIs directly; instead, it sends requests to the backend, which resolves the appropriate bot configuration, injects system prompts, and forwards the request to the configured LLM endpoint. This architecture allows centralized credential management and request shaping.

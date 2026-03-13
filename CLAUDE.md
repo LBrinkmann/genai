@@ -6,18 +6,17 @@ A research platform for collecting Reinforcement Learning from Human Feedback (R
 
 ## Architecture
 
-Three-tier architecture:
+Two-tier architecture:
 
 1. **Chat Frontend** — React 19 SPA for participants to chat, compare bot responses, and give feedback
-2. **Admin Dashboard** — React 19 SPA for researchers to configure bots, design feedback schemes, review sessions, and export data
-3. **Backend API** — FastAPI (Python 3.13, async) acting as hub between frontends, PostgreSQL, and external LLM providers
-4. **Database** — PostgreSQL with SQLAlchemy 2.x async ORM (AsyncPG driver)
+2. **Backend API** — FastAPI (Python 3.13, async) acting as hub between frontend, PostgreSQL, and external LLM providers
+3. **Database** — PostgreSQL with SQLAlchemy 2.x async ORM (AsyncPG driver)
 
-The backend proxies all LLM requests — frontends never call LLM APIs directly. This centralizes credential management and system prompt injection.
+Bot and feedback configurations are defined in YAML files and loaded by the backend at startup — no admin UI. The backend proxies all LLM requests; the frontend never calls LLM APIs directly.
 
 ## Tech Stack
 
-### Frontend (both apps)
+### Frontend
 - React 19, functional components + hooks
 - React Router v7
 - Material-UI (MUI) v6 with Emotion CSS-in-JS
@@ -28,6 +27,7 @@ The backend proxies all LLM requests — frontends never call LLM APIs directly.
 ### Backend
 - FastAPI on Uvicorn (ASGI)
 - HTTPX for async outbound LLM requests
+- YAML config loading (bots, feedback schemes)
 - Python-SocketIO (partially integrated)
 - Poetry for dependency management
 - Python 3.13
@@ -38,56 +38,54 @@ The backend proxies all LLM requests — frontends never call LLM APIs directly.
 - Async session factory with connection pooling
 
 ### Infrastructure
-- Docker Compose for local dev (hot-reload on all services)
+- Docker Compose for local dev (hot-reload) and production (override file)
 - Multi-stage Dockerfiles (dev + prod)
-- Nginx for serving production frontend builds
-- Kubernetes + Helm for production
-- GitLab CI with child pipelines per service
+- Caddy for production reverse proxy, static file serving, and automatic TLS
+- Single VPS deployment (Hetzner CX22 or similar)
+- Deploy via SSH + `git pull` + `docker compose up --build` (or GitHub Actions)
 
 ## Data Model
 
-Four core tables (names include version suffix for schema evolution):
+Two database tables (names include version suffix for schema evolution):
 
 - **Chat Messages** — all messages with bot IDs (JSON), user/session IDs, index, role, content (JSON), feedback (JSON), timestamp
-- **Sessions** — session UUID, user ID, feedback config ID, created_at
-- **Bot Configurations** — bot name (unique), LLM model, API URL, system message, API key
-- **Feedback Configurations** — name (unique), bot list (JSON), main preference feedback text, additional categories (JSON)
+- **Sessions** — session UUID, user ID, feedback config name, created_at
 
-Relationships are logical (not FK-enforced). Duplicate messages are prevented by session ID + index uniqueness.
+Bot and feedback configurations live in YAML files, not in the database. Duplicate messages are prevented by session ID + index uniqueness.
 
 ## Key Patterns
 
+- **YAML config**: Bots and feedback schemes defined in YAML, loaded at startup; env var interpolation for secrets (`${API_KEY}`)
 - **RLHF mode**: Two bots respond in parallel; user selects preferred response; only selected response enters conversation history
-- **LLM proxy**: Backend resolves bot config, injects system prompt, forwards to OpenAI-compatible API, returns response
+- **LLM proxy**: Backend resolves bot config from YAML, injects system prompt, forwards to OpenAI-compatible API, returns response
 - **Auto-scaling tolerance**: Configurable timeouts (up to 10 min) for 503 responses from scale-to-zero endpoints
 - **Session identity**: Browser-local random user ID (no accounts for participants); UUID session IDs from server
 - **CSV export**: Streaming responses for all messages, per-session messages, and session summaries
-- **Auth**: Dashboard uses simple env-var username/password check; no RBAC
 
 ## Environment Variables
 
 ### Backend
 - Database connection string (async PostgreSQL URL)
-- Default LLM API key, endpoint, model (seeds initial bot config)
-- Dashboard auth credentials (username, password)
+- Config file path (`CONFIG_PATH`) pointing to YAML configuration
 - Access key for frontend feature gating
 
-### Frontends
+### Frontend
 - Backend API base URL
 - Backend Socket URL
 
 ## Project Status
 
-Greenfield — project description docs exist in `doc/project-description/`, no implementation code yet.
+Greenfield — project description docs exist in `doc/plans/`, no implementation code yet.
 
 ## Detailed Specs
 
-Full project description lives in `doc/project-description/`:
+Full project description lives in `doc/plans/`:
 - `01-overview.md` — purpose, capabilities, user roles, workflow
 - `02-tech-stack.md` — full technology choices and architecture pattern
 - `03-frontend-chat-interface.md` — chat UI layout, RLHF comparison, feedback, session management
-- `04-frontend-admin-dashboard.md` — admin auth, session browser, bot/feedback config CRUD, data export
-- `05-backend-api.md` — all API endpoints (public + dashboard), LLM proxy architecture, async design
+- `04-configuration.md` — YAML config format for bots and feedback schemes
+- `05-backend-api.md` — all API endpoints, LLM proxy architecture, async design
 - `06-data-model.md` — table schemas, relationships, constraints
 - `07-realtime-and-integrations.md` — WebSocket layer (partial), LLM integration protocol, CORS
-- `08-infrastructure.md` — Docker, CI/CD, Kubernetes, environment config
+- `08-infrastructure.md` — Docker Compose (dev + prod), Caddy, container builds, environment config
+- `09-deployment-options.md` — single VPS deployment with Docker Compose and Caddy
