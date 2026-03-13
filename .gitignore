@@ -27,6 +27,9 @@ Thumbs.db
 # Docker
 *.log
 
+# Backups
+backups/
+
 # Poetry
 poetry.lock
 

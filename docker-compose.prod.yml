@@ -12,6 +12,12 @@ services:
       --workers 2
       --bind 0.0.0.0:8000
       --timeout 600
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
     restart: unless-stopped
     deploy:
       resources:
@@ -22,6 +28,8 @@ services:
   frontend:
     build:
       target: build
+      args:
+        - REACT_APP_API_URL=${REACT_APP_API_URL}
     volumes:
       - frontend-static:/app/build
     command: ["echo", "Frontend build complete"]
@@ -32,6 +40,9 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    environment:
+      - CADDY_DOMAIN=${CADDY_DOMAIN:-chat.example.com}
+      - CADDY_API_DOMAIN=${CADDY_API_DOMAIN:-api.example.com}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - frontend-static:/srv/frontend:ro
