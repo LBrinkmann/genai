@@ -1,5 +1,7 @@
 """Configuration retrieval endpoint."""
 
+import os
+
 from fastapi import APIRouter, HTTPException
 
 from app.config import get_config
@@ -20,6 +22,7 @@ async def get_feedback_config(name: str) -> ConfigResponse:
                 bots=bots,
                 main_preference_feedback=(fc.main_preference_feedback),
                 additional_categories=(fc.additional_categories),
+                access_key=os.environ.get("ACCESS_KEY"),
             )
     raise HTTPException(
         status_code=404,

@@ -44,17 +44,10 @@ export default function useSession() {
     [userId]
   );
 
-  const resetSession = useCallback(
-    async (feedbackConfigName) => {
-      const data = await apiCreateSession(
-        userId,
-        feedbackConfigName
-      );
-      setSessionId(data.session_id);
-      return data.session_id;
-    },
-    [userId]
-  );
-
-  return { userId, sessionId, createSession, resetSession };
+  return {
+    userId,
+    sessionId,
+    createSession,
+    resetSession: createSession,
+  };
 }

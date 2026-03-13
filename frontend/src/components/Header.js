@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
@@ -8,7 +8,7 @@ import Button from '@mui/material/Button';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import SettingsIcon from '@mui/icons-material/Settings';
-import { sendChat } from '../services/api';
+import client from '../services/api';
 
 const statusColors = {
   online: '#4caf50',
@@ -16,29 +16,19 @@ const statusColors = {
   error: '#f44336',
 };
 
-function Header({ bots = [], accessKey, onReset }) {
+function Header({ accessKey, onReset }) {
   const [status, setStatus] = useState('loading');
   const [anchorEl, setAnchorEl] = useState(null);
 
   const checkStatus = useCallback(async () => {
-    if (!bots.length) return;
     setStatus('loading');
     try {
-      await sendChat(
-        bots[0].name,
-        [{ role: 'user', content: 'ping' }],
-        15
-      );
+      await client.get('/api/health');
       setStatus('online');
-    } catch (err) {
-      const code = err?.response?.status;
-      if (code === 503) {
-        setStatus('loading');
-      } else {
-        setStatus('error');
-      }
+    } catch {
+      setStatus('error');
     }
-  }, [bots]);
+  }, []);
 
   useEffect(() => {
     checkStatus();

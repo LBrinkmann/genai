@@ -125,11 +125,7 @@ function ChatPage() {
         bgcolor: 'background.default',
       }}
     >
-      <Header
-        bots={bots}
-        accessKey={accessKey}
-        onReset={handleReset}
-      />
+      <Header accessKey={accessKey} onReset={handleReset} />
       <MessageList
         messages={messages}
         onSelectResponse={selectResponse}

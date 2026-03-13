@@ -4,6 +4,11 @@ import App from './App';
 
 // Mock the API module
 jest.mock('./services/api', () => ({
+  __esModule: true,
+  default: {
+    get: jest.fn().mockResolvedValue({ data: { status: 'ok' } }),
+    post: jest.fn().mockResolvedValue({ data: {} }),
+  },
   fetchConfig: jest.fn().mockResolvedValue({
     bots: [
       { name: 'Bot A', model: 'gpt-4' },

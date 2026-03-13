@@ -10,7 +10,7 @@ export default function useConfig() {
 
   const configName = searchParams.get('config') || 'default';
   const loggingEnabled = searchParams.get('log') === 'true';
-  const accessKey = searchParams.get('key') || null;
+  const accessKeyParam = searchParams.get('key') || null;
 
   useEffect(() => {
     let cancelled = false;
@@ -43,6 +43,9 @@ export default function useConfig() {
       cancelled = true;
     };
   }, [configName]);
+
+  const accessKey =
+    accessKeyParam || config?.access_key || null;
 
   return {
     config,

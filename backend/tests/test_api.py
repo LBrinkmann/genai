@@ -123,6 +123,7 @@ def test_get_config_valid(client) -> None:
     assert data["bots"][0]["name"] == "bot-a"
     assert data["main_preference_feedback"] == ("I prefer this")
     assert data["additional_categories"] == ["More helpful"]
+    assert "access_key" in data
 
 
 def test_get_config_not_found(client) -> None:
