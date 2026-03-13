@@ -1,0 +1,26 @@
+bots:
+  - name: "gpt-4"
+    model: "gpt-4"
+    api_url: "https://api.openai.com/v1/chat/completions"
+    api_key: "${OPENAI_API_KEY}"
+    system_message: "You are a helpful assistant."
+
+  - name: "gpt-4-concise"
+    model: "gpt-4"
+    api_url: "https://api.openai.com/v1/chat/completions"
+    api_key: "${OPENAI_API_KEY}"
+    system_message: "You are a helpful assistant. Keep your answers brief and to the point."
+
+feedback_configs:
+  - name: "comparison-test"
+    bots: ["gpt-4", "gpt-4-concise"]
+    main_preference_feedback: "I prefer this response"
+    additional_categories:
+      - "More helpful"
+      - "More accurate"
+      - "Better tone"
+
+  - name: "single-bot-test"
+    bots: ["gpt-4"]
+    main_preference_feedback: ""
+    additional_categories: []

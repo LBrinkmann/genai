@@ -1,0 +1,9 @@
+{$CADDY_DOMAIN:chat.example.com} {
+	root * /srv/frontend
+	file_server
+	try_files {path} /index.html
+}
+
+{$CADDY_API_DOMAIN:api.example.com} {
+	reverse_proxy backend:8000
+}
