@@ -45,7 +45,9 @@ export default function useConfig() {
   }, [configName]);
 
   const accessKey =
-    accessKeyParam || config?.access_key || null;
+    accessKeyParam && accessKeyParam === config?.access_key
+      ? accessKeyParam
+      : null;
 
   return {
     config,

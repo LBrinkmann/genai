@@ -38,7 +38,7 @@ class ChatMessage(Base):
         JSON, default=list, server_default="[]"
     )
     timestamp: Mapped[datetime] = mapped_column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
@@ -58,7 +58,7 @@ class Session(Base):
     user_id: Mapped[str] = mapped_column(String, index=True, nullable=False)
     feedback_config_name: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         nullable=False,
     )

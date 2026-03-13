@@ -51,7 +51,7 @@ function MessageList({
                   maxWidth: '70%',
                 }}
               >
-                <Typography variant="body2">
+                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
                   {msg.content}
                 </Typography>
               </Box>
@@ -75,7 +75,7 @@ function MessageList({
                   maxWidth: '70%',
                 }}
               >
-                <Typography variant="body2">
+                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
                   {msg.content}
                 </Typography>
               </Box>

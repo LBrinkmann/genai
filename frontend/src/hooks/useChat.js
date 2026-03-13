@@ -110,17 +110,27 @@ export default function useChat({
           await persistMessage(assistantMsg);
         } else {
           const bot = bots[0];
-          const result = await sendChat(bot.name, history);
+          try {
+            const result = await sendChat(bot.name, history);
 
-          const assistantMsg = {
-            role: 'assistant',
-            content: result.content || result.message,
-            index: nextMessages.length,
-            bot_ids: [bot.name],
-          };
+            const assistantMsg = {
+              role: 'assistant',
+              content: result.content || result.message,
+              index: nextMessages.length,
+              bot_ids: [bot.name],
+            };
 
-          setMessages((prev) => [...prev, assistantMsg]);
-          await persistMessage(assistantMsg);
+            setMessages((prev) => [...prev, assistantMsg]);
+            await persistMessage(assistantMsg);
+          } catch (chatErr) {
+            const errorMsg = {
+              role: 'assistant',
+              content: `[Error: ${chatErr?.response?.data?.detail || chatErr.message || 'Failed to get response'}]`,
+              index: nextMessages.length,
+              bot_ids: [bot.name],
+            };
+            setMessages((prev) => [...prev, errorMsg]);
+          }
         }
       } catch (err) {
         console.error('Chat error:', err);

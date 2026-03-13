@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import Typography from '@mui/material/Typography';
@@ -43,15 +43,26 @@ function ChatPage() {
     loggingEnabled,
   });
 
+  const [sessionError, setSessionError] = useState(null);
+
   useEffect(() => {
     if (config && !sessionId) {
-      createSession(configName);
+      createSession(configName).catch((err) => {
+        console.error('Session creation failed:', err);
+        setSessionError('Failed to create session. Please reload.');
+      });
     }
   }, [config, sessionId, createSession, configName]);
 
   const handleReset = useCallback(async () => {
     clearMessages();
-    await resetSession(configName);
+    try {
+      await resetSession(configName);
+      setSessionError(null);
+    } catch (err) {
+      console.error('Session reset failed:', err);
+      setSessionError('Failed to reset session. Please reload.');
+    }
   }, [clearMessages, resetSession, configName]);
 
   const handleFeedbackConfirm = useCallback(
@@ -133,6 +144,11 @@ function ChatPage() {
         mainPreferenceFeedback={mainPreferenceFeedback}
         onFeedbackConfirm={handleFeedbackConfirm}
       />
+      {sessionError && (
+        <Alert severity="warning" sx={{ mx: 2, mb: 1 }} onClose={() => setSessionError(null)}>
+          {sessionError}
+        </Alert>
+      )}
       <MessageInput onSend={sendMessage} disabled={isLoading} />
     </Box>
   );
