@@ -9,6 +9,7 @@ import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Tooltip from '@mui/material/Tooltip';
 import SettingsIcon from '@mui/icons-material/Settings';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import client from '../services/api';
 
 const statusColors = {
@@ -99,6 +100,16 @@ function Header({ accessKey, onReset, configName }) {
           </Box>
         </Tooltip>
         <Box sx={{ flexGrow: 1 }} />
+        <Tooltip title="New conversation" arrow>
+          <IconButton
+            color="inherit"
+            onClick={() => { if (onReset) onReset(); }}
+            size="small"
+            sx={{ mr: 0.5 }}
+          >
+            <RefreshIcon />
+          </IconButton>
+        </Tooltip>
         <IconButton
           edge="end"
           color="inherit"
