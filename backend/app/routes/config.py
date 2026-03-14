@@ -16,7 +16,15 @@ async def get_feedback_config(name: str) -> ConfigResponse:
     cfg = get_config()
     for fc in cfg.feedback_configs:
         if fc.name == name:
-            bots = [BotInfo(name=b) for b in fc.bots]
+            bot_map = {b.name: b for b in cfg.bots}
+            bots = [
+                BotInfo(
+                    name=b,
+                    display_name=bot_map[b].display_name
+                    or b,
+                )
+                for b in fc.bots
+            ]
             defaults = DefaultsResponse(
                 config=cfg.defaults.config,
                 log=cfg.defaults.log,

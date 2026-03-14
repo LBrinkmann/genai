@@ -4,12 +4,14 @@ defaults:
 
 bots:
   - name: "genocideai-a"
+    display_name: "GENocideAI"
     model: "NoraAl/GENocideAI-01"
     api_url: "https://twt8ziu7jvtabi5l.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions"
     api_key: "${HF_INFERENCE_TOKEN}"
     system_message: ""
 
   - name: "genocideai-b"
+    display_name: "GENocideAI"
     model: "NoraAl/GENocideAI-01"
     api_url: "https://twt8ziu7jvtabi5l.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions"
     api_key: "${HF_INFERENCE_TOKEN}"

@@ -210,6 +210,18 @@ EOF"
   echo "Done! App is live at http://$ip"
 }
 
+cmd_sync_config() {
+  # Upload local config to server and restart backend
+  local id_ip; id_ip=$(resolve_server "$1")
+  local ip; ip=$(echo "$id_ip" | cut -d' ' -f2)
+  local project_root; project_root="$(cd "$(dirname "$0")/../../.." && pwd)"
+  echo "Syncing config to $ip..."
+  scp "$project_root/config/experiment.yml" "root@$ip:/opt/genai/config/experiment.yml"
+  echo "  Config uploaded. Restarting backend..."
+  ssh "root@$ip" "cd /opt/genai && docker compose -f docker-compose.yml -f docker-compose.prod.yml restart backend" 2>&1
+  echo "Done."
+}
+
 cmd_deploy() {
   # Update existing server: pull code, rebuild
   local id_ip; id_ip=$(resolve_server "$1")
@@ -274,6 +286,7 @@ case "$CMD" in
   ssh)          cmd_ssh "$1" ;;
   init)         cmd_init "$1" ;;
   deploy)       cmd_deploy "$1" ;;
+  sync-config)  cmd_sync_config "$1" ;;
   logs)         cmd_logs "$1" "${2:-}" ;;
   status)       cmd_status "$1" ;;
   ssh-key-add)  cmd_ssh_key_add "$1" "$2" ;;
@@ -295,6 +308,7 @@ Server management:
 Deployment:
   init <name|id>                Full setup: Docker, clone, .env, build, start
   deploy <name|id>              Pull code + rebuild containers
+  sync-config <name|id>         Upload local config + restart backend
   status <name|id>              Show container status
   logs <name|id> [service]      Show container logs
 

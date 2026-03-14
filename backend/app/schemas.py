@@ -51,6 +51,7 @@ class BotInfo(BaseModel):
     """Public bot information (no secrets)."""
 
     name: str
+    display_name: str = ""
 
 
 class DefaultsResponse(BaseModel):

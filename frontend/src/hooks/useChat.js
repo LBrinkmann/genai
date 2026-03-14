@@ -92,7 +92,7 @@ export default function useChat({
           );
 
           const content = results.map((res, i) => ({
-            bot: bots[i].name,
+            bot: bots[i].display_name || bots[i].name,
             text: res.error
               ? `[Error: ${res.message}]`
               : res.content || res.message,

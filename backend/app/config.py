@@ -17,6 +17,7 @@ class BotConfig(BaseModel):
     api_url: str
     api_key: Optional[str] = ""
     system_message: Optional[str] = ""
+    display_name: Optional[str] = ""
 
 
 class FeedbackConfig(BaseModel):
