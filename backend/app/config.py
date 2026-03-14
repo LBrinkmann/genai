@@ -28,11 +28,19 @@ class FeedbackConfig(BaseModel):
     additional_categories: list[str] = []
 
 
+class DefaultsConfig(BaseModel):
+    """Default values for URL parameters."""
+
+    config: str = "default"
+    log: bool = False
+
+
 class AppConfig(BaseModel):
     """Top-level application configuration."""
 
     bots: list[BotConfig]
     feedback_configs: list[FeedbackConfig]
+    defaults: DefaultsConfig = DefaultsConfig()
 
     @model_validator(mode="after")
     def validate_config(self) -> "AppConfig":

@@ -53,6 +53,13 @@ class BotInfo(BaseModel):
     name: str
 
 
+class DefaultsResponse(BaseModel):
+    """Default URL parameter values."""
+
+    config: str = "default"
+    log: bool = False
+
+
 class ConfigResponse(BaseModel):
     """Response for configuration retrieval."""
 
@@ -61,3 +68,4 @@ class ConfigResponse(BaseModel):
     main_preference_feedback: Optional[str] = ""
     additional_categories: list[str] = []
     access_key: Optional[str] = None
+    defaults: DefaultsResponse = DefaultsResponse()

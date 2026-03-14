@@ -1,3 +1,7 @@
+defaults:
+  config: "comparison-test"   # which feedback config to load when no ?config= param
+  log: true                   # whether to persist messages when no ?log= param
+
 bots:
   - name: "gpt-4"
     model: "gpt-4"

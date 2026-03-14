@@ -8,8 +8,8 @@ export default function useConfig() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const configName = searchParams.get('config') || 'default';
-  const loggingEnabled = searchParams.get('log') === 'true';
+  const configNameParam = searchParams.get('config') || 'default';
+  const logParam = searchParams.get('log');
   const accessKeyParam = searchParams.get('key') || null;
 
   useEffect(() => {
@@ -19,7 +19,7 @@ export default function useConfig() {
       setLoading(true);
       setError(null);
       try {
-        const data = await fetchConfig(configName);
+        const data = await fetchConfig(configNameParam);
         if (!cancelled) {
           setConfig(data);
         }
@@ -42,7 +42,11 @@ export default function useConfig() {
     return () => {
       cancelled = true;
     };
-  }, [configName]);
+  }, [configNameParam]);
+
+  const defaults = config?.defaults || {};
+  const loggingEnabled =
+    logParam !== null ? logParam === 'true' : (defaults.log ?? false);
 
   const accessKey =
     accessKeyParam && accessKeyParam === config?.access_key
@@ -53,7 +57,7 @@ export default function useConfig() {
     config,
     loading,
     error,
-    configName,
+    configName: configNameParam,
     accessKey,
     loggingEnabled,
   };
