@@ -7,6 +7,7 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
+import Tooltip from '@mui/material/Tooltip';
 import SettingsIcon from '@mui/icons-material/Settings';
 import client from '../services/api';
 
@@ -16,23 +17,43 @@ const statusColors = {
   error: '#f44336',
 };
 
-function Header({ accessKey, onReset }) {
-  const [status, setStatus] = useState('loading');
+function Header({ accessKey, onReset, configName }) {
+  const [botStatuses, setBotStatuses] = useState([]);
   const [anchorEl, setAnchorEl] = useState(null);
 
   const checkStatus = useCallback(async () => {
-    setStatus('loading');
+    if (!configName) return;
     try {
-      await client.get('/api/health');
-      setStatus('online');
+      const resp = await client.get(
+        `/api/health/bots?config=${encodeURIComponent(configName)}`
+      );
+      setBotStatuses(resp.data.bots || []);
     } catch {
-      setStatus('error');
+      setBotStatuses([]);
     }
-  }, []);
+  }, [configName]);
 
   useEffect(() => {
     checkStatus();
+    // Poll every 10s while any bot is not online
+    const interval = setInterval(() => {
+      checkStatus();
+    }, 10000);
+    return () => clearInterval(interval);
   }, [checkStatus]);
+
+  // Aggregate status: worst of all bots
+  const aggregateStatus = botStatuses.length === 0
+    ? 'loading'
+    : botStatuses.every((b) => b.status === 'online')
+      ? 'online'
+      : botStatuses.some((b) => b.status === 'error')
+        ? 'error'
+        : 'loading';
+
+  const tooltipText = botStatuses.length === 0
+    ? 'Checking...'
+    : botStatuses.map((b) => `${b.name}: ${b.status}`).join(', ');
 
   return (
     <AppBar
@@ -48,18 +69,35 @@ function Header({ accessKey, onReset }) {
         >
           GenAI Chat
         </Typography>
-        <Box
-          sx={{
-            width: 10,
-            height: 10,
-            borderRadius: '50%',
-            bgcolor:
-              statusColors[status] || statusColors.error,
-            ml: 1.5,
-          }}
-          title={`Status: ${status}`}
-          data-testid="status-indicator"
-        />
+        <Tooltip title={tooltipText} arrow>
+          <Box sx={{ display: 'flex', gap: 0.5, ml: 1.5 }}>
+            {botStatuses.length === 0 ? (
+              <Box
+                sx={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: '50%',
+                  bgcolor: statusColors.loading,
+                }}
+                data-testid="status-indicator"
+              />
+            ) : (
+              botStatuses.map((b) => (
+                <Box
+                  key={b.name}
+                  sx={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: '50%',
+                    bgcolor: statusColors[b.status] || statusColors.error,
+                  }}
+                  title={`${b.name}: ${b.status}`}
+                  data-testid="status-indicator"
+                />
+              ))
+            )}
+          </Box>
+        </Tooltip>
         <Box sx={{ flexGrow: 1 }} />
         <IconButton
           edge="end"

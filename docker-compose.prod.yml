@@ -4,6 +4,7 @@ services:
       target: prod
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - HF_INFERENCE_TOKEN=${HF_INFERENCE_TOKEN}
     volumes:
       - ./config:/app/config:ro
     command: >

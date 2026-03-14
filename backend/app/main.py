@@ -46,3 +46,77 @@ app.include_router(export_router)
 async def health() -> dict:
     """Health check endpoint."""
     return {"status": "ok"}
+
+
+@app.get("/api/health/bots")
+async def health_bots(config: str = "default") -> dict:
+    """Check reachability of each bot in a feedback config."""
+    import httpx
+
+    from app.config import get_config
+
+    cfg = get_config()
+
+    # Find the feedback config
+    fc = None
+    for f in cfg.feedback_configs:
+        if f.name == config:
+            fc = f
+            break
+    if fc is None:
+        return {"bots": []}
+
+    # Find bot configs
+    bot_map = {b.name: b for b in cfg.bots}
+    results = []
+
+    async with httpx.AsyncClient(timeout=5) as client:
+        for bot_name in fc.bots:
+            bot = bot_map.get(bot_name)
+            if bot is None:
+                results.append(
+                    {"name": bot_name, "status": "error"}
+                )
+                continue
+            try:
+                headers = {}
+                if bot.api_key:
+                    headers["Authorization"] = (
+                        f"Bearer {bot.api_key}"
+                    )
+                resp = await client.post(
+                    bot.api_url,
+                    json={
+                        "model": bot.model,
+                        "messages": [
+                            {
+                                "role": "user",
+                                "content": "ping",
+                            }
+                        ],
+                        "max_tokens": 1,
+                    },
+                    headers=headers,
+                )
+                if resp.status_code == 503:
+                    results.append(
+                        {"name": bot_name, "status": "loading"}
+                    )
+                elif resp.status_code < 400:
+                    results.append(
+                        {"name": bot_name, "status": "online"}
+                    )
+                else:
+                    results.append(
+                        {"name": bot_name, "status": "error"}
+                    )
+            except httpx.TimeoutException:
+                results.append(
+                    {"name": bot_name, "status": "loading"}
+                )
+            except Exception:
+                results.append(
+                    {"name": bot_name, "status": "error"}
+                )
+
+    return {"bots": results}

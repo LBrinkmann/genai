@@ -136,7 +136,7 @@ function ChatPage() {
         bgcolor: 'background.default',
       }}
     >
-      <Header accessKey={accessKey} onReset={handleReset} />
+      <Header accessKey={accessKey} onReset={handleReset} configName={configName} />
       <MessageList
         messages={messages}
         onSelectResponse={selectResponse}
