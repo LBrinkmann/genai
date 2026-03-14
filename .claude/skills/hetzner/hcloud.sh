@@ -226,11 +226,14 @@ cmd_deploy() {
   # Update existing server: pull code, force-rebuild all, restart
   local id_ip; id_ip=$(resolve_server "$1")
   local ip; ip=$(echo "$id_ip" | cut -d' ' -f2)
+  local compose="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
   echo "Deploying to $ip..."
   echo "  Pulling latest code..."
   ssh "root@$ip" "cd /opt/genai && git pull" 2>&1 | tail -5
-  echo "  Rebuilding containers (no cache for frontend)..."
-  ssh "root@$ip" "cd /opt/genai && docker compose -f docker-compose.yml -f docker-compose.prod.yml build --no-cache frontend && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build && docker compose -f docker-compose.yml -f docker-compose.prod.yml restart caddy" 2>&1 | tail -10
+  echo "  Removing old frontend build..."
+  ssh "root@$ip" "cd /opt/genai && $compose down frontend caddy && docker volume rm -f genai_frontend-static" 2>&1 | tail -5
+  echo "  Rebuilding and starting all containers..."
+  ssh "root@$ip" "cd /opt/genai && $compose up -d --build" 2>&1 | tail -10
   echo "Deploy complete."
 }
 
