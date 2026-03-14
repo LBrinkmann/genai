@@ -9,6 +9,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth import require_access_key
 from app.database import get_session
 from app.models import ChatMessage, Session
 
@@ -23,6 +24,7 @@ MSG_COLUMNS = [
     "role",
     "content",
     "feedback",
+    "selected",
     "timestamp",
 ]
 
@@ -46,6 +48,7 @@ def _msg_to_row(msg: ChatMessage) -> list:
         msg.role,
         msg.content,
         msg.feedback,
+        msg.selected,
         msg.timestamp.isoformat() if msg.timestamp else "",
     ]
 
@@ -68,7 +71,10 @@ async def _stream_messages(
         yield _row_to_csv_line(_msg_to_row(row))
 
 
-@router.get("/messages")
+@router.get(
+    "/messages",
+    dependencies=[Depends(require_access_key)],
+)
 async def export_all_messages(
     db: AsyncSession = Depends(get_session),
 ) -> StreamingResponse:
@@ -80,7 +86,10 @@ async def export_all_messages(
     )
 
 
-@router.get("/messages/{session_id}")
+@router.get(
+    "/messages/{session_id}",
+    dependencies=[Depends(require_access_key)],
+)
 async def export_session_messages(
     session_id: str,
     db: AsyncSession = Depends(get_session),
@@ -141,7 +150,10 @@ async def _stream_sessions(
         )
 
 
-@router.get("/sessions")
+@router.get(
+    "/sessions",
+    dependencies=[Depends(require_access_key)],
+)
 async def export_sessions(
     db: AsyncSession = Depends(get_session),
 ) -> StreamingResponse:

@@ -5,6 +5,7 @@ services:
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - HF_INFERENCE_TOKEN=${HF_INFERENCE_TOKEN}
+      - CORS_ORIGIN=${CORS_ORIGIN}
     volumes:
       - ./config:/app/config:ro
     command: >

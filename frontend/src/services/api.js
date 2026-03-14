@@ -36,4 +36,11 @@ export async function saveMessage(messageData) {
   return response.data;
 }
 
+export async function validateKey(key) {
+  const response = await client.post('/api/auth/validate-key', {
+    key,
+  });
+  return response.data;
+}
+
 export default client;

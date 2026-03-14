@@ -37,6 +37,7 @@ class ChatMessage(Base):
     feedback: Mapped[list | None] = mapped_column(
         JSON, default=list, server_default="[]"
     )
+    selected: Mapped[int | None] = mapped_column(Integer, nullable=True)
     timestamp: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

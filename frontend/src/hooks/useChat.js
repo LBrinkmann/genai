@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { sendChat, saveMessage } from '../services/api';
 
 export default function useChat({
@@ -9,6 +9,8 @@ export default function useChat({
 }) {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
 
   const buildHistory = useCallback(
     (msgs) =>
@@ -52,6 +54,7 @@ export default function useChat({
           content: msg.content,
           bot_ids: msg.bot_ids || [],
           feedback: msg.feedback || [],
+          selected: msg.selected ?? null,
           timestamp: new Date().toISOString(),
         });
       } catch (err) {
@@ -63,19 +66,20 @@ export default function useChat({
 
   const sendMessage = useCallback(
     async (text) => {
+      const currentMessages = messagesRef.current;
       const userMsg = {
         role: 'user',
         content: text,
-        index: messages.length,
+        index: currentMessages.length,
         bot_ids: bots.map((b) => b.name),
       };
 
-      const nextMessages = [...messages, userMsg];
-      setMessages(nextMessages);
+      setMessages((prev) => [...prev, userMsg]);
       await persistMessage(userMsg);
 
       setIsLoading(true);
       try {
+        const nextMessages = [...currentMessages, userMsg];
         const history = buildHistory(nextMessages);
         const isRlhf = bots.length === 2;
 
@@ -138,7 +142,7 @@ export default function useChat({
         setIsLoading(false);
       }
     },
-    [messages, bots, buildHistory, persistMessage]
+    [bots, buildHistory, persistMessage]
   );
 
   const selectResponse = useCallback(
@@ -152,7 +156,7 @@ export default function useChat({
       );
 
       if (loggingEnabled && sessionId) {
-        const msg = messages.find(
+        const msg = messagesRef.current.find(
           (m) => m.index === messageIndex
         );
         if (msg) {
@@ -174,7 +178,7 @@ export default function useChat({
         }
       }
     },
-    [messages, loggingEnabled, sessionId, userId]
+    [loggingEnabled, sessionId, userId]
   );
 
   const clearMessages = useCallback(() => {

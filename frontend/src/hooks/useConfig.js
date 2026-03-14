@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { fetchConfig } from '../services/api';
+import { fetchConfig, validateKey } from '../services/api';
 
 export default function useConfig() {
   const [searchParams] = useSearchParams();
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [accessKey, setAccessKey] = useState(null);
 
   const configNameParam = searchParams.get('config') || 'default';
   const logParam = searchParams.get('log');
@@ -44,14 +45,35 @@ export default function useConfig() {
     };
   }, [configNameParam]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function checkKey() {
+      if (!accessKeyParam) {
+        setAccessKey(null);
+        return;
+      }
+      try {
+        const result = await validateKey(accessKeyParam);
+        if (!cancelled) {
+          setAccessKey(result.valid ? accessKeyParam : null);
+        }
+      } catch {
+        if (!cancelled) {
+          setAccessKey(null);
+        }
+      }
+    }
+
+    checkKey();
+    return () => {
+      cancelled = true;
+    };
+  }, [accessKeyParam]);
+
   const defaults = config?.defaults || {};
   const loggingEnabled =
     logParam !== null ? logParam === 'true' : (defaults.log ?? false);
-
-  const accessKey =
-    accessKeyParam && accessKeyParam === config?.access_key
-      ? accessKeyParam
-      : null;
 
   return {
     config,

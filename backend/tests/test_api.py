@@ -71,6 +71,7 @@ def _config_and_db(tmp_path: Path, monkeypatch):
     cfg_file = tmp_path / "config.yaml"
     cfg_file.write_text(TEST_CONFIG_YAML)
     monkeypatch.setenv("CONFIG_PATH", str(cfg_file))
+    monkeypatch.setenv("ACCESS_KEY", "test-secret")
 
     from app.config import init_config
 
@@ -123,7 +124,7 @@ def test_get_config_valid(client) -> None:
     assert data["bots"][0]["name"] == "bot-a"
     assert data["main_preference_feedback"] == ("I prefer this")
     assert data["additional_categories"] == ["More helpful"]
-    assert "access_key" in data
+    assert "access_key" not in data
 
 
 def test_get_config_not_found(client) -> None:
@@ -243,6 +244,9 @@ def test_save_message_duplicate(client) -> None:
 # --------------- export tests ---------------
 
 
+AUTH_HEADER = {"Authorization": "Bearer test-secret"}
+
+
 def test_export_messages_csv(client) -> None:
     now = datetime.now(timezone.utc).isoformat()
     client.post(
@@ -259,13 +263,14 @@ def test_export_messages_csv(client) -> None:
         },
     )
 
-    resp = client.get("/api/export/messages")
+    resp = client.get("/api/export/messages", headers=AUTH_HEADER)
     assert resp.status_code == 200
     assert "text/csv" in resp.headers["content-type"]
 
     reader = csv.reader(io.StringIO(resp.text))
     rows = list(reader)
     assert rows[0][0] == "id"
+    assert "selected" in rows[0]
     assert len(rows) >= 2
 
 
@@ -287,7 +292,10 @@ def test_export_session_messages_csv(
         },
     )
 
-    resp = client.get("/api/export/messages/s-export")
+    resp = client.get(
+        "/api/export/messages/s-export",
+        headers=AUTH_HEADER,
+    )
     assert resp.status_code == 200
     reader = csv.reader(io.StringIO(resp.text))
     rows = list(reader)
@@ -303,7 +311,7 @@ def test_export_sessions_csv(client) -> None:
         },
     )
 
-    resp = client.get("/api/export/sessions")
+    resp = client.get("/api/export/sessions", headers=AUTH_HEADER)
     assert resp.status_code == 200
     reader = csv.reader(io.StringIO(resp.text))
     rows = list(reader)
@@ -317,6 +325,25 @@ def test_export_sessions_csv(client) -> None:
     assert len(rows) >= 2
 
 
+def test_export_requires_auth(client) -> None:
+    """Export endpoints return 401 without valid key."""
+    for path in [
+        "/api/export/messages",
+        "/api/export/messages/s1",
+        "/api/export/sessions",
+    ]:
+        resp = client.get(path)
+        assert resp.status_code == 401
+
+    bad = {"Authorization": "Bearer wrong"}
+    for path in [
+        "/api/export/messages",
+        "/api/export/sessions",
+    ]:
+        resp = client.get(path, headers=bad)
+        assert resp.status_code == 401
+
+
 # --------------- health ---------------
 
 
@@ -324,3 +351,88 @@ def test_health(client) -> None:
     resp = client.get("/api/health")
     assert resp.status_code == 200
     assert resp.json() == {"status": "ok"}
+
+
+# --------------- validate-key ---------------
+
+
+def test_validate_key_correct(client) -> None:
+    resp = client.post(
+        "/api/auth/validate-key",
+        json={"key": "test-secret"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["valid"] is True
+
+
+def test_validate_key_wrong(client) -> None:
+    resp = client.post(
+        "/api/auth/validate-key",
+        json={"key": "bad"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["valid"] is False
+
+
+# --------------- selected field ---------------
+
+
+def test_save_message_with_selected(client) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    resp = client.post(
+        "/api/messages",
+        json={
+            "user_id": "u1",
+            "session_id": "s-sel",
+            "index": 0,
+            "role": "assistant",
+            "content": [
+                {"bot": "a", "text": "hi"},
+                {"bot": "b", "text": "hey"},
+            ],
+            "bot_ids": ["a", "b"],
+            "feedback": [],
+            "selected": 1,
+            "timestamp": now,
+        },
+    )
+    assert resp.status_code == 201
+
+    export = client.get(
+        "/api/export/messages/s-sel",
+        headers=AUTH_HEADER,
+    )
+    reader = csv.reader(io.StringIO(export.text))
+    rows = list(reader)
+    header = rows[0]
+    sel_idx = header.index("selected")
+    assert rows[1][sel_idx] == "1"
+
+
+# --------------- LLM error handling ---------------
+
+
+def test_chat_bad_llm_response(client) -> None:
+    """502 when LLM returns unexpected JSON."""
+    mock_response = httpx.Response(
+        200,
+        json={"unexpected": "format"},
+        request=httpx.Request("POST", "https://x"),
+    )
+
+    with patch("app.routes.chat.httpx.AsyncClient") as mock_cls:
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_response
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_cls.return_value = mock_client
+
+        resp = client.post(
+            "/api/chat",
+            json={
+                "bot_name": "bot-a",
+                "messages": [{"role": "user", "content": "Hi"}],
+            },
+        )
+
+    assert resp.status_code == 502

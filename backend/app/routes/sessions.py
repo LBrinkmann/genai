@@ -55,6 +55,7 @@ async def save_message(
         content=body.content,
         bot_ids=body.bot_ids,
         feedback=body.feedback,
+        selected=body.selected,
         timestamp=body.timestamp,
     )
     db.add(msg)

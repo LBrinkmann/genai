@@ -44,6 +44,7 @@ class MessageSave(BaseModel):
     content: Any
     bot_ids: list[str] = []
     feedback: list[str] = []
+    selected: Optional[int] = None
     timestamp: datetime
 
 
@@ -68,5 +69,4 @@ class ConfigResponse(BaseModel):
     bots: list[BotInfo]
     main_preference_feedback: Optional[str] = ""
     additional_categories: list[str] = []
-    access_key: Optional[str] = None
     defaults: DefaultsResponse = DefaultsResponse()

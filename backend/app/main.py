@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import init_config
 from app.database import create_tables
+from app.routes.auth import router as auth_router
 from app.routes.chat import router as chat_router
 from app.routes.config import router as config_router
 from app.routes.export import router as export_router
@@ -30,12 +31,13 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[os.environ.get("CORS_ORIGIN", "http://localhost:3000")],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+app.include_router(auth_router)
 app.include_router(config_router)
 app.include_router(chat_router)
 app.include_router(sessions_router)
@@ -74,16 +76,12 @@ async def health_bots(config: str = "default") -> dict:
         for bot_name in fc.bots:
             bot = bot_map.get(bot_name)
             if bot is None:
-                results.append(
-                    {"name": bot_name, "status": "error"}
-                )
+                results.append({"name": bot_name, "status": "error"})
                 continue
             try:
                 headers = {}
                 if bot.api_key:
-                    headers["Authorization"] = (
-                        f"Bearer {bot.api_key}"
-                    )
+                    headers["Authorization"] = f"Bearer {bot.api_key}"
                 resp = await client.post(
                     bot.api_url,
                     json={
@@ -99,24 +97,14 @@ async def health_bots(config: str = "default") -> dict:
                     headers=headers,
                 )
                 if resp.status_code == 503:
-                    results.append(
-                        {"name": bot_name, "status": "loading"}
-                    )
+                    results.append({"name": bot_name, "status": "loading"})
                 elif resp.status_code < 400:
-                    results.append(
-                        {"name": bot_name, "status": "online"}
-                    )
+                    results.append({"name": bot_name, "status": "online"})
                 else:
-                    results.append(
-                        {"name": bot_name, "status": "error"}
-                    )
+                    results.append({"name": bot_name, "status": "error"})
             except httpx.TimeoutException:
-                results.append(
-                    {"name": bot_name, "status": "loading"}
-                )
+                results.append({"name": bot_name, "status": "loading"})
             except Exception:
-                results.append(
-                    {"name": bot_name, "status": "error"}
-                )
+                results.append({"name": bot_name, "status": "error"})
 
     return {"bots": results}

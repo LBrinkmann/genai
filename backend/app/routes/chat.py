@@ -71,6 +71,12 @@ async def chat(request: ChatRequest) -> ChatResponse:
             detail=f"LLM connection error: {exc}",
         )
 
-    data = resp.json()
-    content = data["choices"][0]["message"]["content"]
+    try:
+        data = resp.json()
+        content = data["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError) as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=("Unexpected LLM response format:" f" {exc}"),
+        )
     return ChatResponse(content=content)
