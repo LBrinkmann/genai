@@ -1,5 +1,5 @@
 defaults:
-  config: "default"
+  config: "comparison"
   log: true
 
 bots:
