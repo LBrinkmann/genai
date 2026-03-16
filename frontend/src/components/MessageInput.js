@@ -1,9 +1,6 @@
 import React, { useState } from 'react';
 import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
-import IconButton from '@mui/material/IconButton';
-import CircularProgress from '@mui/material/CircularProgress';
-import SendIcon from '@mui/icons-material/Send';
 
 function MessageInput({ onSend, disabled = false }) {
   const [value, setValue] = useState('');
@@ -27,63 +24,70 @@ function MessageInput({ onSend, disabled = false }) {
   return (
     <Box
       sx={{
-        p: 2,
-        borderTop: '1px solid',
-        borderColor: 'divider',
-        bgcolor: 'background.paper',
+        px: { xs: 2, sm: 3 },
+        py: 1.5,
+        background: 'rgba(10,10,15,0.6)',
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 1 }}>
-        <TextField
-          fullWidth
-          multiline
-          maxRows={4}
-          placeholder="Type a message..."
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={disabled}
-          variant="outlined"
-          size="small"
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              borderRadius: 3,
+      <TextField
+        fullWidth
+        multiline
+        maxRows={4}
+        placeholder="Type here..."
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={handleKeyDown}
+        disabled={disabled}
+        variant="standard"
+        size="small"
+        sx={{
+          '& .MuiInput-root': {
+            color: 'text.primary',
+            fontSize: '0.95rem',
+            '&:before': {
+              borderBottomColor: 'rgba(255,255,255,0.1)',
             },
+            '&:hover:not(.Mui-disabled):before': {
+              borderBottomColor: 'rgba(255,255,255,0.2)',
+            },
+            '&:after': {
+              borderBottomColor: 'primary.main',
+            },
+          },
+          '& .MuiInput-input::placeholder': {
+            color: 'text.secondary',
+            opacity: 0.4,
+          },
+        }}
+        slotProps={{
+          input: {
+            disableUnderline: false,
+          },
+        }}
+      />
+      {disabled && (
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            mt: 1,
           }}
-        />
-        {disabled ? (
+        >
           <Box
             sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 40,
-              height: 40,
-            }}
-          >
-            <CircularProgress size={24} />
-          </Box>
-        ) : (
-          <IconButton
-            color="primary"
-            onClick={handleSend}
-            disabled={!value.trim()}
-            sx={{
+              width: 24,
+              height: 2,
               bgcolor: 'primary.main',
-              color: 'white',
-              '&:hover': { bgcolor: 'primary.dark' },
-              '&.Mui-disabled': {
-                bgcolor: 'action.disabledBackground',
-                color: 'action.disabled',
+              borderRadius: 1,
+              animation: 'pulse 1.5s ease-in-out infinite',
+              '@keyframes pulse': {
+                '0%, 100%': { opacity: 0.3 },
+                '50%': { opacity: 0.8 },
               },
-              width: 40,
-              height: 40,
             }}
-          >
-            <SendIcon fontSize="small" />
-          </IconButton>
-        )}
-      </Box>
+          />
+        </Box>
+      )}
     </Box>
   );
 }

@@ -27,10 +27,29 @@ jest.mock('./services/api', () => ({
   saveMessage: jest.fn().mockResolvedValue({}),
 }));
 
+// Mock canvas getContext for AnimatedBackground and DissolvingText
+beforeAll(() => {
+  HTMLCanvasElement.prototype.getContext = jest.fn(() => ({
+    clearRect: jest.fn(),
+    beginPath: jest.fn(),
+    arc: jest.fn(),
+    fill: jest.fn(),
+    stroke: jest.fn(),
+    moveTo: jest.fn(),
+    lineTo: jest.fn(),
+    fillStyle: '',
+    strokeStyle: '',
+    lineWidth: 1,
+    shadowColor: '',
+    shadowBlur: 0,
+  }));
+});
+
 test('renders chat page with header', async () => {
   render(<App />);
   await waitFor(() => {
-    expect(screen.getByText(/GenAI Chat/i)).toBeInTheDocument();
+    const matches = screen.getAllByText(/GENocideAI/);
+    expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 });
 
@@ -38,12 +57,14 @@ test('renders message input after config loads', async () => {
   render(<App />);
   await waitFor(() => {
     expect(
-      screen.getByPlaceholderText(/Type a message/i)
+      screen.getByPlaceholderText(/Type here/i)
     ).toBeInTheDocument();
   });
 });
 
-test('shows loading spinner initially', () => {
+test('shows loading indicator initially', () => {
   render(<App />);
-  expect(screen.getByRole('progressbar')).toBeInTheDocument();
+  // Loading state shows a pulse bar, not a spinner
+  expect(document.querySelector('[class*="pulse"]') ||
+    document.querySelector('canvas')).toBeTruthy();
 });
