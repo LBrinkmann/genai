@@ -15,11 +15,14 @@ import Box from '@mui/material/Box';
  * like dust in the wind.
  */
 
+// -- Mobile detection --
+const IS_MOBILE = window.innerWidth < 768;
+
 // -- Tuning constants --
 const DISSOLUTION_ZONE = 0.35;
 const SAMPLE_STEP = 3;
-const MAX_PARTICLES_PER_MSG = 200;
-const MAX_PARTICLES_TOTAL = 2000;
+const MAX_PARTICLES_PER_MSG = IS_MOBILE ? 100 : 200;
+const MAX_PARTICLES_TOTAL = IS_MOBILE ? 1000 : 2000;
 const WIND_X = -0.6;
 const WIND_Y = -0.15;
 const GRAVITY = 0.04;
@@ -27,7 +30,7 @@ const TURBULENCE_AMP = 0.3;
 const PARTICLE_MIN_SIZE = 1;
 const PARTICLE_MAX_SIZE = 3;
 const PARTICLE_COLOR = { r: 224, g: 224, b: 224 };
-const SHADOW_BLUR = 2.5;
+const SHADOW_BLUR = IS_MOBILE ? 0 : 2.5;
 const SAMPLE_THROTTLE_MS = 250;
 const ADAPTIVE_FRAME_BUDGET_MS = 20;
 
@@ -68,7 +71,7 @@ function acquireParticle() {
 }
 
 // -- Text pixel sampling --
-function sampleTextPixels(text, width, font, lineHeight) {
+function sampleTextPixels(text, width, font, lineHeight, step) {
   if (!text || width <= 0) return [];
 
   const offscreen = document.createElement('canvas');
@@ -111,9 +114,9 @@ function sampleTextPixels(text, width, font, lineHeight) {
     offscreen.height
   );
   const pixels = [];
-  const step = SAMPLE_STEP;
-  for (let y = 0; y < offscreen.height; y += step) {
-    for (let x = 0; x < offscreen.width; x += step) {
+  const s = step || SAMPLE_STEP;
+  for (let y = 0; y < offscreen.height; y += s) {
+    for (let x = 0; x < offscreen.width; x += s) {
       const idx = (y * offscreen.width + x) * 4 + 3;
       if (imageData.data[idx] > 128) {
         pixels.push({ x, y });
@@ -168,10 +171,10 @@ function DissolvingText({ children, scrollRef }) {
 
     const messageEls =
       container.querySelectorAll('[data-msg-index]');
-    const activeParticles = particlesRef.current.filter(
-      (p) => p.active
-    );
-    let totalActive = activeParticles.length;
+    let totalActive = 0;
+    for (let i = 0; i < pool.length; i++) {
+      if (pool[i].active) totalActive++;
+    }
 
     messageEls.forEach((el) => {
       const rect = el.getBoundingClientRect();
@@ -233,12 +236,12 @@ function DissolvingText({ children, scrollRef }) {
       }
 
       // Sample pixel positions from text
-      const step = adaptiveStepRef.current;
       const pixels = sampleTextPixels(
         text,
         Math.max(textWidth, 50),
         TEXT_FONT,
-        20 // line height approx
+        20, // line height approx
+        adaptiveStepRef.current
       );
 
       if (pixels.length === 0) return;
@@ -394,8 +397,8 @@ function DissolvingText({ children, scrollRef }) {
       ctx.globalAlpha = 1;
       ctx.shadowBlur = 0;
 
-      // Update particlesRef count for external tracking
-      particlesRef.current = pool.filter((p) => p.active);
+      // Track alive count without allocating a new array
+      particlesRef.current.length = aliveCount;
 
       sampleDissolutionZone();
       animRef.current = requestAnimationFrame(animate);
