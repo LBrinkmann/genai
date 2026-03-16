@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Background Studio</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0a0a0f; overflow: hidden; }
+  canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; }
+  #controls {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    z-index: 10; display: flex; gap: 12px; align-items: center;
+    font: 13px sans-serif; color: #888;
+  }
+  #controls button {
+    background: #222; color: #aaa; border: 1px solid #444; border-radius: 4px;
+    padding: 6px 16px; cursor: pointer; font: 13px sans-serif;
+  }
+  #controls button:hover { background: #333; color: #ddd; }
+  #label { min-width: 250px; text-align: center; }
+  #sliders {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    z-index: 10; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
+    font: 11px sans-serif; color: #888; max-width: 800px;
+  }
+  #sliders .ctrl { display: flex; flex-direction: column; gap: 2px; min-width: 110px; }
+  #sliders input { width: 100%; height: 4px; -webkit-appearance: none;
+    background: #333; border-radius: 2px; outline: none; }
+  #sliders input::-webkit-slider-thumb { -webkit-appearance: none;
+    width: 10px; height: 10px; background: #888; border-radius: 50%; cursor: pointer; }
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<div id="sliders">
+  <div class="ctrl"><label>Dot opacity: <span id="s-dop">0.7</span></label>
+    <input type="range" id="sl-dop" min="0.1" max="1" value="0.7" step="0.05"></div>
+  <div class="ctrl"><label>Nodes: <span id="s-nden">25</span>/100kpx</label>
+    <input type="range" id="sl-nden" min="2" max="100" value="25" step="1"></div>
+  <div class="ctrl"><label>Dots: <span id="s-dcnt">100</span>/100kpx</label>
+    <input type="range" id="sl-dcnt" min="5" max="500" value="100" step="5"></div>
+  <div class="ctrl"><label>Dot velocity: <span id="s-dvel">0.4</span></label>
+    <input type="range" id="sl-dvel" min="0.05" max="1.5" value="0.4" step="0.05"></div>
+  <div class="ctrl"><label>Flow: <span id="s-dir">345</span>°</label>
+    <input type="range" id="sl-dir" min="0" max="359" value="345" step="1"></div>
+</div>
+<script>
+const canvas = document.getElementById('canvas');
+let ctx, W, H, animId;
+
+function resize() {
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W * devicePixelRatio;
+  canvas.height = H * devicePixelRatio;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx = canvas.getContext('2d');
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+}
+
+const effects = ['DAG Flow'];
+let current = 0;
+
+function updateLabel() {}
+
+// ─── Shared utils ───────────────────────────────────────
+function lerp(a, b, t) { return a + (b - a) * t; }
+function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+
+// ─── Effect 0: DAG Flow ─────────────────────────────────
+// Nodes scattered randomly, edges only go left→right (DAG).
+// Edges don't cross. Small particles travel along edges.
+// Network extends beyond visible screen; particles born/die off-screen.
+function dagFlow() {
+  // Read slider params
+  const P = {
+    netOpacity: 0,
+    dotOpacity: parseFloat(document.getElementById('sl-dop').value),
+    dotVelocity: parseFloat(document.getElementById('sl-dvel').value),
+  };
+  // Density-based auto-scaling
+  const MARGIN = 200;
+  const totalW = W + 2 * MARGIN;
+  const totalH = H + 2 * MARGIN;
+  const totalPixels = totalW * totalH;
+  const isMobile = W < 768;
+  const mobileBoost = isMobile ? 1.5 : 1.0;
+  const nodeDensity = parseFloat(document.getElementById('sl-nden').value);
+  const dotDensity = parseFloat(document.getElementById('sl-dcnt').value);
+  Object.assign(P, {
+    nodeCount: Math.round(nodeDensity * totalPixels / 100000 * mobileBoost),
+    dotCount: Math.round(dotDensity * totalPixels / 100000 * mobileBoost),
+    flowAngle: parseFloat(document.getElementById('sl-dir').value) * Math.PI / 180,
+  });
+
+  const CONNECT_DIST = 250;
+  // Flow direction vector
+  const flowDx = Math.cos(P.flowAngle);
+  const flowDy = Math.sin(P.flowAngle);
+
+  // Project node position onto flow axis
+  function flowPos(n) { return n.x * flowDx + n.y * flowDy; }
+
+  // Generate nodes in extended area, sorted by flow direction
+  let nodes = [];
+  for (let i = 0; i < P.nodeCount; i++) {
+    nodes.push({
+      x: -200 + Math.random() * totalW,
+      y: -200 + Math.random() * totalH,
+      size: 1.5 + Math.random() * 2,
+      phase: Math.random() * Math.PI * 2,
+    });
+  }
+  nodes.sort((a, b) => flowPos(a) - flowPos(b));
+
+  // Build edges: only connect i→j where j.x > i.x (DAG)
+  // Avoid crossings: for each candidate edge, check if it crosses existing ones
+  const edges = [];
+
+  function segmentsCross(ax, ay, bx, by, cx, cy, dx, dy) {
+    const denom = (bx-ax)*(dy-cy) - (by-ay)*(dx-cx);
+    if (Math.abs(denom) < 0.001) return false;
+    const t = ((cx-ax)*(dy-cy) - (cy-ay)*(dx-cx)) / denom;
+    const u = ((cx-ax)*(by-ay) - (cy-ay)*(bx-ax)) / denom;
+    return t > 0.01 && t < 0.99 && u > 0.01 && u < 0.99;
+  }
+
+  for (let i = 0; i < nodes.length; i++) {
+    // Try connecting to a few nearby nodes to the right
+    const candidates = [];
+    for (let j = i + 1; j < nodes.length; j++) {
+      const d = dist(nodes[i], nodes[j]);
+      const fwd = flowPos(nodes[j]) - flowPos(nodes[i]);
+      if (d < CONNECT_DIST && fwd > 20) {
+        candidates.push({ j, d });
+      }
+    }
+    candidates.sort((a, b) => a.d - b.d);
+
+    // Take up to 2 connections per node
+    let added = 0;
+    for (const c of candidates) {
+      if (added >= 2) break;
+      const ni = nodes[i], nj = nodes[c.j];
+      // Check crossing with existing edges
+      let crosses = false;
+      for (const e of edges) {
+        if (segmentsCross(ni.x, ni.y, nj.x, nj.y,
+            nodes[e.from].x, nodes[e.from].y,
+            nodes[e.to].x, nodes[e.to].y)) {
+          crosses = true;
+          break;
+        }
+      }
+      if (!crosses) {
+        edges.push({ from: i, to: c.j });
+        added++;
+      }
+    }
+  }
+
+  // Precompute edge lengths
+  for (const e of edges) {
+    const a = nodes[e.from], b = nodes[e.to];
+    e.length = dist(a, b);
+  }
+
+  // Build outgoing edge index per node
+  const outEdges = nodes.map(() => []);
+  for (let i = 0; i < edges.length; i++) {
+    outEdges[edges[i].from].push(i);
+  }
+
+  // Each particle gets a random lifespan (number of hops before disappearing)
+  const particles = [];
+  function spawnParticle(stagger) {
+    if (edges.length === 0) return null;
+    // Born at a random node that has outgoing edges
+    const validNodes = [];
+    for (let i = 0; i < nodes.length; i++) {
+      if (outEdges[i].length > 0) validNodes.push(i);
+    }
+    if (validNodes.length === 0) return null;
+    const startNode = validNodes[Math.floor(Math.random() * validNodes.length)];
+    const startEdges = outEdges[startNode];
+    const ei = startEdges[Math.floor(Math.random() * startEdges.length)];
+    return {
+      edgeIndex: ei,
+      t: stagger ? Math.random() : 0,
+      speed: (0.2 + Math.random() * 0.4) * P.dotVelocity,
+      size: 0.8 + Math.random() * 1.2,
+      alpha: P.dotOpacity * (0.5 + Math.random() * 0.5),
+      hopsLeft: 2 + Math.floor(Math.random() * 6), // disappear after 2-7 hops
+    };
+  }
+  for (let i = 0; i < P.dotCount; i++) {
+    const p = spawnParticle(true);
+    if (p) particles.push(p);
+  }
+
+  let elapsed = 0;
+  function draw(dt) {
+    elapsed += dt;
+    ctx.clearRect(0, 0, W, H);
+
+    // Draw edges
+    for (const e of edges) {
+      const a = nodes[e.from], b = nodes[e.to];
+      const pulse = Math.sin(elapsed * 0.5 + a.x * 0.005) * 0.5 + 0.5;
+      const alpha = (0.06 + pulse * 0.04) * P.netOpacity;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.strokeStyle = `rgba(60,50,80,${alpha * 5})`;
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+    }
+
+    // Draw nodes
+    for (const n of nodes) {
+      const pulse = Math.sin(elapsed * 0.4 + n.phase) * 0.5 + 0.5;
+      const alpha = (0.08 + pulse * 0.08) * P.netOpacity;
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, n.size, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(80,65,110,${alpha * 5})`;
+      ctx.fill();
+    }
+
+    // Update and draw particles
+    for (const p of particles) {
+      p.t += p.speed * dt;
+      if (p.t >= 1) {
+        p.hopsLeft--;
+        if (p.hopsLeft <= 0) {
+          // Disappear and respawn at a new random node
+          Object.assign(p, spawnParticle(false));
+          continue;
+        }
+        // Jump to a connected edge (follow the DAG)
+        const currentTo = edges[p.edgeIndex].to;
+        const next = outEdges[currentTo];
+        if (next.length > 0) {
+          p.edgeIndex = next[Math.floor(Math.random() * next.length)];
+          p.t = 0;
+        } else {
+          // No outgoing — respawn
+          Object.assign(p, spawnParticle(false));
+        }
+      }
+
+      const e = edges[p.edgeIndex];
+      const a = nodes[e.from], b = nodes[e.to];
+      const x = lerp(a.x, b.x, p.t);
+      const y = lerp(a.y, b.y, p.t);
+
+      ctx.beginPath();
+      ctx.arc(x, y, p.size, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(160,140,200,${p.alpha * P.dotOpacity})`;
+      ctx.fill();
+    }
+  }
+  return draw;
+}
+
+
+// ─── Animation loop ─────────────────────────────────────
+const effectFns = [dagFlow];
+let drawFn = null;
+let lastTime = 0;
+
+function startEffect(index) {
+  cancelAnimationFrame(animId);
+  resize();
+  ctx.clearRect(0, 0, W, H);
+  current = index;
+  updateLabel();
+  // Show sliders only for DAG Flow (index 0)
+  document.getElementById('sliders').style.display = index === 0 ? 'flex' : 'none';
+  drawFn = effectFns[index]();
+  lastTime = performance.now();
+  loop();
+}
+
+function loop() {
+  const now = performance.now();
+  const dt = Math.min((now - lastTime) / 1000, 0.05);
+  lastTime = now;
+  drawFn(dt);
+  animId = requestAnimationFrame(loop);
+}
+
+// ─── Controls ───────────────────────────────────────────
+window.addEventListener('resize', () => startEffect(current));
+
+// Slider events — update labels and restart DAG
+document.querySelectorAll('#sliders input').forEach(inp => {
+  inp.addEventListener('input', () => {
+    // Update all labels
+    document.getElementById('s-dop').textContent = document.getElementById('sl-dop').value;
+    document.getElementById('s-nden').textContent = document.getElementById('sl-nden').value;
+    document.getElementById('s-dcnt').textContent = document.getElementById('sl-dcnt').value;
+    document.getElementById('s-dop').textContent = document.getElementById('sl-dop').value;
+    document.getElementById('s-dvel').textContent = document.getElementById('sl-dvel').value;
+    document.getElementById('s-dir').textContent = document.getElementById('sl-dir').value;
+    if (current === 0) { cancelAnimationFrame(animId); startEffect(0); }
+  });
+});
+
+startEffect(0);
+</script>
+</body>
+</html>
