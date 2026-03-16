@@ -263,6 +263,126 @@ import json,sys; k=json.load(sys.stdin)['ssh_key']
 print(f\"SSH key added: ID={k['id']} name={k['name']}\")"
 }
 
+cmd_preview_start() {
+  # Deploy a branch preview on the remote server
+  local id_ip; id_ip=$(resolve_server "$1")
+  local ip; ip=$(echo "$id_ip" | cut -d' ' -f2)
+  local branch="$2"
+  local fport="${3:-3001}"
+  local bport="${4:-8001}"
+  local preview_dir="/opt/genai-previews/$branch"
+
+  echo "Starting remote preview: $branch on $ip"
+  echo "  Frontend: http://$ip:$fport"
+  echo "  Backend:  http://$ip:$bport"
+
+  # Clone or update the preview worktree
+  ssh "root@$ip" "
+    set -e
+    mkdir -p /opt/genai-previews
+    if [ ! -d '$preview_dir' ]; then
+      cd /opt/genai
+      git fetch origin
+      git worktree add '$preview_dir' 'origin/feat/$branch' 2>/dev/null || \
+        git worktree add '$preview_dir' 'origin/$branch'
+    else
+      cd '$preview_dir'
+      git fetch origin
+      git checkout -B 'feat/$branch' 'origin/feat/$branch' 2>/dev/null || \
+        git checkout -B '$branch' 'origin/$branch'
+    fi
+  " 2>&1 | tail -5
+
+  # Copy .env and generate preview compose
+  ssh "root@$ip" "
+    cp /opt/genai/.env '$preview_dir/.env'
+    sed -i 's|REACT_APP_API_URL=.*|REACT_APP_API_URL=http://$ip:${bport}|' '$preview_dir/.env'
+    sed -i 's|CORS_ORIGIN=.*|CORS_ORIGIN=http://$ip:${fport}|' '$preview_dir/.env'
+
+    cat > '$preview_dir/docker-compose.preview.yml' << YAML
+services:
+  backend:
+    build:
+      target: dev
+    volumes:
+      - ./backend:/app
+      - ./config:/app/config
+    ports:
+      - \"${bport}:8000\"
+    environment:
+      - OPENAI_API_KEY=\\\${OPENAI_API_KEY}
+      - HF_INFERENCE_TOKEN=\\\${HF_INFERENCE_TOKEN}
+      - CORS_ORIGIN=http://$ip:${fport}
+    command: >
+      uvicorn app.main:app
+      --host 0.0.0.0
+      --port 8000
+      --reload
+
+  frontend:
+    build:
+      target: dev
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - \"${fport}:3000\"
+    environment:
+      - REACT_APP_API_URL=http://$ip:${bport}
+
+  db: {}
+YAML
+  "
+
+  # Start the preview
+  ssh "root@$ip" "
+    cd '$preview_dir'
+    COMPOSE_PROJECT_NAME='genai-$branch' \
+      docker compose \
+      -f docker-compose.yml \
+      -f docker-compose.preview.yml \
+      up -d --build
+  " 2>&1 | tail -10
+
+  echo ""
+  echo "Preview '$branch' running on $ip:"
+  echo "  Frontend: http://$ip:$fport"
+  echo "  Backend:  http://$ip:$bport"
+}
+
+cmd_preview_stop() {
+  local id_ip; id_ip=$(resolve_server "$1")
+  local ip; ip=$(echo "$id_ip" | cut -d' ' -f2)
+  local branch="$2"
+  local preview_dir="/opt/genai-previews/$branch"
+
+  echo "Stopping remote preview: $branch"
+  ssh "root@$ip" "
+    cd '$preview_dir' 2>/dev/null && \
+    COMPOSE_PROJECT_NAME='genai-$branch' \
+      docker compose \
+      -f docker-compose.yml \
+      -f docker-compose.preview.yml \
+      down
+  " 2>&1 | tail -5
+  echo "Preview '$branch' stopped."
+}
+
+cmd_preview_list() {
+  local id_ip; id_ip=$(resolve_server "$1")
+  local ip; ip=$(echo "$id_ip" | cut -d' ' -f2)
+
+  echo "Remote previews on $ip:"
+  ssh "root@$ip" "
+    for dir in /opt/genai-previews/*/; do
+      [ -d \"\$dir\" ] || continue
+      name=\$(basename \"\$dir\")
+      running=\$(cd \"\$dir\" && COMPOSE_PROJECT_NAME=\"genai-\$name\" docker compose -f docker-compose.yml -f docker-compose.preview.yml ps --format '{{.Status}}' 2>/dev/null | head -1)
+      echo \"  \$name — \${running:-stopped}\"
+    done
+  " 2>/dev/null || echo "  (none)"
+}
+
 cmd_types() {
   echo "NAME        vCPU   RAM   DISK  ARCH   PRICE"
   echo "----------- ----  ----  -----  -----  ----------"
@@ -293,6 +413,9 @@ case "$CMD" in
   init)         cmd_init "$1" ;;
   deploy)       cmd_deploy "$1" ;;
   sync-config)  cmd_sync_config "$1" ;;
+  preview-start) cmd_preview_start "$1" "$2" "${3:-3001}" "${4:-8001}" ;;
+  preview-stop)  cmd_preview_stop "$1" "$2" ;;
+  preview-list)  cmd_preview_list "$1" ;;
   logs)         cmd_logs "$1" "${2:-}" ;;
   status)       cmd_status "$1" ;;
   ssh-key-add)  cmd_ssh_key_add "$1" "$2" ;;
@@ -317,6 +440,11 @@ Deployment:
   sync-config <name|id>         Upload local config + restart backend
   status <name|id>              Show container status
   logs <name|id> [service]      Show container logs
+
+Previews (remote):
+  preview-start <server> <branch> [fport] [bport]  Deploy branch preview
+  preview-stop <server> <branch>                   Stop branch preview
+  preview-list <server>                            List remote previews
 
 Infrastructure:
   types                         List available server types + prices

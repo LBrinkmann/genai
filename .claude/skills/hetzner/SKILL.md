@@ -31,8 +31,14 @@ If `$ARGUMENTS` is empty, run with `help` to show available commands.
 **Deployment:**
 - `init <name|id>` — full setup: install Docker, clone repo, copy .env + config, build, start
 - `deploy <name|id>` — pull latest code + rebuild containers
+- `sync-config <name|id>` — upload local config + restart backend
 - `status <name|id>` — show container status on server
 - `logs <name|id> [service]` — show container logs (optionally filter by service: backend, caddy, db)
+
+**Branch previews (remote):**
+- `preview-start <server> <branch> [fport] [bport]` — deploy a branch as a preview on custom ports
+- `preview-stop <server> <branch>` — stop a branch preview
+- `preview-list <server>` — list all remote previews
 
 **Infrastructure:**
 - `types` — list available server types with prices
