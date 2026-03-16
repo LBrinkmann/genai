@@ -4,6 +4,8 @@ import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import VolumeUpIcon from '@mui/icons-material/VolumeUp';
+import VolumeOffIcon from '@mui/icons-material/VolumeOff';
 import client from '../services/api';
 
 const statusColors = {
@@ -12,7 +14,14 @@ const statusColors = {
   error: '#6a3a3a',
 };
 
-function Header({ onReset, configName, onBotStatuses }) {
+function Header({
+  onReset,
+  configName,
+  onBotStatuses,
+  ttsEnabled = false,
+  muted = false,
+  onToggleMute,
+}) {
   const [botStatuses, setBotStatuses] = useState([]);
 
   const checkStatus = useCallback(async () => {
@@ -100,6 +109,27 @@ function Header({ onReset, configName, onBotStatuses }) {
         </Box>
       </Tooltip>
       <Box sx={{ flexGrow: 1 }} />
+      {ttsEnabled && (
+        <Tooltip title={muted ? 'Unmute voice' : 'Mute voice'} arrow>
+          <IconButton
+            onClick={() => { if (onToggleMute) onToggleMute(); }}
+            size="small"
+            sx={{
+              color: 'text.secondary',
+              opacity: muted ? 0.3 : 0.5,
+              mr: 0.5,
+              '&:hover': { opacity: 0.8 },
+            }}
+            data-testid="mute-toggle"
+          >
+            {muted ? (
+              <VolumeOffIcon fontSize="small" />
+            ) : (
+              <VolumeUpIcon fontSize="small" />
+            )}
+          </IconButton>
+        </Tooltip>
+      )}
       <Tooltip title="New conversation" arrow>
         <IconButton
           onClick={() => { if (onReset) onReset(); }}

@@ -13,6 +13,7 @@ import MessageInput from '../components/MessageInput';
 import useConfig from '../hooks/useConfig';
 import useSession from '../hooks/useSession';
 import useChat from '../hooks/useChat';
+import useVoice from '../hooks/useVoice';
 import { saveMessage } from '../services/api';
 
 function ChatPage() {
@@ -34,6 +35,8 @@ function ChatPage() {
   const mainPreferenceFeedback =
     config?.main_preference_feedback || '';
 
+  const ttsEnabled = config?.tts_enabled || false;
+
   const {
     messages,
     sendMessage,
@@ -47,9 +50,17 @@ function ChatPage() {
     loggingEnabled,
   });
 
+  const {
+    playingIndex,
+    muted,
+    playResponse,
+    toggleMute,
+  } = useVoice({ enabled: ttsEnabled });
+
   const [sessionError, setSessionError] = useState(null);
   const [allBotsError, setAllBotsError] = useState(false);
   const scrollRef = useRef(null);
+  const prevMsgCountRef = useRef(0);
 
   // Track bot statuses for deactivated banner
   const handleBotStatuses = useCallback((statuses) => {
@@ -74,6 +85,22 @@ function ChatPage() {
     }
   }, [config, sessionId, createSession, configName]);
 
+  // Auto-play TTS for new assistant messages
+  useEffect(() => {
+    const count = messages.length;
+    if (count > prevMsgCountRef.current) {
+      const lastMsg = messages[count - 1];
+      if (
+        lastMsg &&
+        lastMsg.role === 'assistant' &&
+        !Array.isArray(lastMsg.content)
+      ) {
+        playResponse(lastMsg.content, lastMsg.index);
+      }
+    }
+    prevMsgCountRef.current = count;
+  }, [messages, playResponse]);
+
   // Close/leave confirmation
   useEffect(() => {
     const handler = (e) => {
@@ -84,6 +111,26 @@ function ChatPage() {
     return () =>
       window.removeEventListener('beforeunload', handler);
   }, []);
+
+  const handleSelectResponse = useCallback(
+    (messageIndex, botIndex) => {
+      selectResponse(messageIndex, botIndex);
+      const msg = messages.find(
+        (m) => m.index === messageIndex
+      );
+      if (
+        msg &&
+        Array.isArray(msg.content) &&
+        msg.content[botIndex]
+      ) {
+        playResponse(
+          msg.content[botIndex].text,
+          messageIndex
+        );
+      }
+    },
+    [selectResponse, messages, playResponse]
+  );
 
   const handleReset = useCallback(async () => {
     clearMessages();
@@ -208,16 +255,20 @@ function ChatPage() {
           onReset={handleReset}
           configName={configName}
           onBotStatuses={handleBotStatuses}
+          ttsEnabled={ttsEnabled}
+          muted={muted}
+          onToggleMute={toggleMute}
         />
         <WelcomeMessage visible={messages.length === 0} />
         <DissolvingText scrollRef={scrollRef}>
           <MessageList
             messages={messages}
-            onSelectResponse={selectResponse}
+            onSelectResponse={handleSelectResponse}
             feedbackCategories={feedbackCategories}
             mainPreferenceFeedback={mainPreferenceFeedback}
             onFeedbackConfirm={handleFeedbackConfirm}
             scrollRef={scrollRef}
+            playingIndex={playingIndex}
           />
         </DissolvingText>
         {sessionError && (

@@ -36,12 +36,21 @@ class DefaultsConfig(BaseModel):
     log: bool = False
 
 
+class TTSConfig(BaseModel):
+    """Configuration for text-to-speech."""
+
+    enabled: bool = False
+    api_url: str = ""
+    api_key: Optional[str] = ""
+
+
 class AppConfig(BaseModel):
     """Top-level application configuration."""
 
     bots: list[BotConfig]
     feedback_configs: list[FeedbackConfig]
     defaults: DefaultsConfig = DefaultsConfig()
+    tts: TTSConfig = TTSConfig()
 
     @model_validator(mode="after")
     def validate_config(self) -> "AppConfig":

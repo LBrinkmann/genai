@@ -13,6 +13,7 @@ from app.routes.chat import router as chat_router
 from app.routes.config import router as config_router
 from app.routes.export import router as export_router
 from app.routes.sessions import router as sessions_router
+from app.routes.tts import router as tts_router
 
 
 @asynccontextmanager
@@ -42,6 +43,7 @@ app.include_router(config_router)
 app.include_router(chat_router)
 app.include_router(sessions_router)
 app.include_router(export_router)
+app.include_router(tts_router)
 
 
 @app.get("/api/health")

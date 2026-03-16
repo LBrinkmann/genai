@@ -436,3 +436,71 @@ def test_chat_bad_llm_response(client) -> None:
         )
 
     assert resp.status_code == 502
+
+
+# --------------- TTS tests ---------------
+
+
+def test_tts_voices_list(client) -> None:
+    """GET /api/tts/voices returns the voice list."""
+    resp = client.get("/api/tts/voices")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "voices" in data
+    assert "af_heart" in data["voices"]
+    assert len(data["voices"]) == 15
+
+
+def test_tts_disabled_returns_404(client) -> None:
+    """POST /api/tts returns 404 when TTS is disabled."""
+    resp = client.post(
+        "/api/tts",
+        json={"text": "Hello"},
+    )
+    assert resp.status_code == 404
+
+
+def test_tts_returns_audio(client, monkeypatch) -> None:
+    """POST /api/tts returns audio bytes when enabled."""
+    from app.config import get_config
+
+    cfg = get_config()
+    monkeypatch.setattr(cfg.tts, "enabled", True)
+    monkeypatch.setattr(
+        cfg.tts,
+        "api_url",
+        "https://tts.example.com/v1/audio/speech",
+    )
+
+    fake_audio = b"\xff\xfb\x90\x00" * 100
+
+    mock_response = httpx.Response(
+        200,
+        content=fake_audio,
+        request=httpx.Request("POST", "https://tts.example.com"),
+    )
+
+    with patch("app.tts.httpx.AsyncClient") as mock_cls:
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_response
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_cls.return_value = mock_client
+
+        resp = client.post(
+            "/api/tts",
+            json={"text": "Hello world"},
+        )
+
+    assert resp.status_code == 200
+    assert resp.headers["content-type"] == "audio/mpeg"
+    assert resp.content == fake_audio
+
+
+def test_config_includes_tts_enabled(client) -> None:
+    """Config response includes tts_enabled field."""
+    resp = client.get("/api/config/compare")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "tts_enabled" in data
+    assert data["tts_enabled"] is False

@@ -70,3 +70,4 @@ class ConfigResponse(BaseModel):
     main_preference_feedback: Optional[str] = ""
     additional_categories: list[str] = []
     defaults: DefaultsResponse = DefaultsResponse()
+    tts_enabled: bool = False

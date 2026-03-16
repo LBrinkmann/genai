@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
+import GraphicEqIcon from '@mui/icons-material/GraphicEq';
 import ResponseComparison from './ResponseComparison';
 import FeedbackPanel from './FeedbackPanel';
 
@@ -24,6 +25,7 @@ function MessageList({
   mainPreferenceFeedback = '',
   onFeedbackConfirm,
   scrollRef,
+  playingIndex = null,
 }) {
   const endRef = useRef(null);
 
@@ -95,6 +97,7 @@ function MessageList({
 
         const isComparison = Array.isArray(msg.content);
         if (!isComparison) {
+          const isSpeaking = playingIndex === msg.index;
           return (
             <Box
               key={msg.index}
@@ -121,6 +124,22 @@ function MessageList({
                 >
                   {msg.content}
                 </Typography>
+                {isSpeaking && (
+                  <GraphicEqIcon
+                    data-testid="speaking-indicator"
+                    sx={{
+                      fontSize: 14,
+                      color: 'primary.main',
+                      opacity: 0.6,
+                      mt: 0.5,
+                      animation: 'pulse 1.5s ease-in-out infinite',
+                      '@keyframes pulse': {
+                        '0%, 100%': { opacity: 0.3 },
+                        '50%': { opacity: 0.8 },
+                      },
+                    }}
+                  />
+                )}
               </Box>
             </Box>
           );

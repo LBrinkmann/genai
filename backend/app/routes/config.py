@@ -32,6 +32,7 @@ async def get_feedback_config(name: str) -> ConfigResponse:
                 main_preference_feedback=(fc.main_preference_feedback),
                 additional_categories=(fc.additional_categories),
                 defaults=defaults,
+                tts_enabled=cfg.tts.enabled,
             )
     raise HTTPException(
         status_code=404,
