@@ -4,12 +4,26 @@ import Typography from '@mui/material/Typography';
 import ResponseComparison from './ResponseComparison';
 import FeedbackPanel from './FeedbackPanel';
 
+const fadeInKeyframes = {
+  '@keyframes msgFadeIn': {
+    from: {
+      opacity: 0,
+      transform: 'translateY(10px)',
+    },
+    to: {
+      opacity: 1,
+      transform: 'translateY(0)',
+    },
+  },
+};
+
 function MessageList({
   messages,
   onSelectResponse,
   feedbackCategories = [],
   mainPreferenceFeedback = '',
   onFeedbackConfirm,
+  scrollRef,
 }) {
   const endRef = useRef(null);
 
@@ -21,14 +35,28 @@ function MessageList({
 
   return (
     <Box
+      ref={scrollRef}
       sx={{
         flex: 1,
         overflowY: 'auto',
-        px: 2,
+        px: { xs: 1.5, sm: 2 },
         py: 2,
         display: 'flex',
         flexDirection: 'column',
         gap: 2,
+        position: 'relative',
+        ...fadeInKeyframes,
+        /* Scrollbar styling */
+        '&::-webkit-scrollbar': {
+          width: 4,
+        },
+        '&::-webkit-scrollbar-track': {
+          background: 'transparent',
+        },
+        '&::-webkit-scrollbar-thumb': {
+          background: 'rgba(255,255,255,0.08)',
+          borderRadius: 2,
+        },
       }}
     >
       {messages.map((msg) => {
@@ -36,22 +64,28 @@ function MessageList({
           return (
             <Box
               key={msg.index}
+              data-msg-index={msg.index}
               sx={{
                 display: 'flex',
                 justifyContent: 'flex-end',
+                animation: 'msgFadeIn 1s ease forwards',
               }}
             >
               <Box
                 sx={{
-                  bgcolor: 'primary.main',
-                  color: 'white',
+                  bgcolor: 'rgba(196, 163, 90, 0.12)',
+                  border: '1px solid rgba(196, 163, 90, 0.15)',
+                  color: 'text.primary',
                   px: 2,
                   py: 1.5,
-                  borderRadius: 3,
-                  maxWidth: '70%',
+                  borderRadius: 2,
+                  maxWidth: { xs: '85%', sm: '70%' },
                 }}
               >
-                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                <Typography
+                  variant="body2"
+                  sx={{ whiteSpace: 'pre-wrap' }}
+                >
                   {msg.content}
                 </Typography>
               </Box>
@@ -64,18 +98,27 @@ function MessageList({
           return (
             <Box
               key={msg.index}
-              sx={{ display: 'flex', justifyContent: 'flex-start' }}
+              data-msg-index={msg.index}
+              sx={{
+                display: 'flex',
+                justifyContent: 'flex-start',
+                animation: 'msgFadeIn 1s ease forwards',
+              }}
             >
               <Box
                 sx={{
-                  bgcolor: 'grey.100',
+                  bgcolor: 'rgba(255, 255, 255, 0.04)',
+                  border: '1px solid rgba(255, 255, 255, 0.06)',
                   px: 2,
                   py: 1.5,
-                  borderRadius: 3,
-                  maxWidth: '70%',
+                  borderRadius: 2,
+                  maxWidth: { xs: '85%', sm: '70%' },
                 }}
               >
-                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                <Typography
+                  variant="body2"
+                  sx={{ whiteSpace: 'pre-wrap' }}
+                >
                   {msg.content}
                 </Typography>
               </Box>
@@ -86,11 +129,13 @@ function MessageList({
         return (
           <Box
             key={msg.index}
+            data-msg-index={msg.index}
             sx={{
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'flex-start',
               gap: 1,
+              animation: 'msgFadeIn 1s ease forwards',
             }}
           >
             <ResponseComparison

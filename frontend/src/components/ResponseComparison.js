@@ -1,6 +1,5 @@
 import React from 'react';
 import Box from '@mui/material/Box';
-import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 
 function ResponseComparison({ responses, selected, onSelect }) {
@@ -8,6 +7,7 @@ function ResponseComparison({ responses, selected, onSelect }) {
     <Box
       sx={{
         display: 'flex',
+        flexDirection: { xs: 'column', sm: 'row' },
         gap: 2,
         width: '100%',
         maxWidth: 720,
@@ -16,29 +16,35 @@ function ResponseComparison({ responses, selected, onSelect }) {
       {responses.map((resp, idx) => {
         const isSelected = selected === idx;
         const isOtherSelected =
-          selected !== null && selected !== undefined && !isSelected;
+          selected !== null &&
+          selected !== undefined &&
+          !isSelected;
 
         return (
-          <Paper
+          <Box
             key={idx}
-            elevation={isSelected ? 3 : 1}
             onClick={() => onSelect && onSelect(idx)}
             sx={{
               flex: 1,
               p: 2,
               cursor: onSelect ? 'pointer' : 'default',
-              border: 2,
+              bgcolor: 'rgba(255, 255, 255, 0.03)',
+              border: '1px solid',
               borderColor: isSelected
-                ? 'primary.main'
-                : 'transparent',
-              opacity: isOtherSelected ? 0.55 : 1,
-              transition: 'all 0.2s ease',
+                ? 'rgba(196, 163, 90, 0.4)'
+                : 'rgba(255, 255, 255, 0.06)',
+              borderRadius: 2,
+              opacity: isOtherSelected ? 0.4 : 1,
+              transition: 'all 0.4s ease',
+              boxShadow: isSelected
+                ? '0 0 20px rgba(196, 163, 90, 0.1)'
+                : 'none',
               '&:hover': onSelect
                 ? {
                     borderColor: isSelected
-                      ? 'primary.main'
-                      : 'primary.light',
-                    transform: 'translateY(-1px)',
+                      ? 'rgba(196, 163, 90, 0.4)'
+                      : 'rgba(255, 255, 255, 0.15)',
+                    bgcolor: 'rgba(255, 255, 255, 0.05)',
                   }
                 : {},
             }}
@@ -46,16 +52,22 @@ function ResponseComparison({ responses, selected, onSelect }) {
             <Typography
               variant="caption"
               sx={{
-                fontWeight: 600,
+                fontWeight: 500,
                 color: 'text.secondary',
                 mb: 1,
                 display: 'block',
+                opacity: 0.5,
               }}
             >
-              {resp.bot}
+              GENocideAI
             </Typography>
-            <Typography variant="body2">{resp.text}</Typography>
-          </Paper>
+            <Typography
+              variant="body2"
+              sx={{ whiteSpace: 'pre-wrap' }}
+            >
+              {resp.text}
+            </Typography>
+          </Box>
         );
       })}
     </Box>
