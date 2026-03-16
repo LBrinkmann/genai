@@ -23,6 +23,9 @@ dist/
 # Claude Code worktrees
 .claude/worktrees/
 
+# Branch preview worktrees
+previews/
+
 # OS
 .DS_Store
 Thumbs.db
