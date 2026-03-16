@@ -2,29 +2,35 @@ import { createTheme } from '@mui/material/styles';
 
 const theme = createTheme({
   palette: {
+    mode: 'dark',
     primary: {
-      main: '#1976d2',
-      light: '#42a5f5',
-      dark: '#1565c0',
+      main: '#c4a35a',
+      light: '#d4b97a',
+      dark: '#a08040',
     },
     background: {
-      default: '#f5f5f5',
-      paper: '#ffffff',
+      default: '#0a0a0f',
+      paper: '#12121a',
     },
+    text: {
+      primary: '#e0e0e0',
+      secondary: '#8a8a9a',
+    },
+    divider: 'rgba(255,255,255,0.06)',
   },
   typography: {
-    fontFamily: [
-      '-apple-system',
-      'BlinkMacSystemFont',
-      '"Segoe UI"',
-      'Roboto',
-      '"Helvetica Neue"',
-      'Arial',
-      'sans-serif',
-    ].join(','),
+    fontFamily: '"Inter", sans-serif',
+    h5: {
+      fontFamily: '"Playfair Display", serif',
+      fontWeight: 600,
+    },
+    h6: {
+      fontFamily: '"Playfair Display", serif',
+      fontWeight: 600,
+    },
   },
   shape: {
-    borderRadius: 12,
+    borderRadius: 8,
   },
   components: {
     MuiCssBaseline: {
@@ -34,6 +40,7 @@ const theme = createTheme({
           padding: 0,
           height: '100vh',
           overflow: 'hidden',
+          backgroundColor: '#0a0a0f',
         },
         '#root': {
           height: '100vh',
@@ -42,5 +49,12 @@ const theme = createTheme({
     },
   },
 });
+
+export const pulseKeyframes = {
+  '@keyframes pulse': {
+    '0%, 100%': { opacity: 0.3 },
+    '50%': { opacity: 0.8 },
+  },
+};
 
 export default theme;
