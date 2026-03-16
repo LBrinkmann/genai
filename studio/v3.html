@@ -6,47 +6,259 @@
 <title>Background Studio</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #0a0a0f; overflow: hidden; }
-  canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; }
-  #controls {
-    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-    z-index: 10; display: flex; gap: 12px; align-items: center;
-    font: 13px sans-serif; color: #888;
+  body { overflow: hidden; font-family: Georgia, 'Times New Roman', serif; }
+  canvas#bg { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; }
+
+  /* ── Chat messages ─────────────────────────────── */
+  #chat {
+    position: fixed; bottom: 60px; left: 0; right: 0; top: 0;
+    z-index: 1; overflow-y: auto; padding: 20px 40px;
+    display: flex; flex-direction: column; justify-content: flex-end; gap: 12px;
+    pointer-events: none;
   }
-  #controls button {
-    background: #222; color: #aaa; border: 1px solid #444; border-radius: 4px;
-    padding: 6px 16px; cursor: pointer; font: 13px sans-serif;
+  .msg {
+    max-width: 55%; padding: 12px 18px; border-radius: 12px;
+    font-size: 15px; line-height: 1.6; position: relative;
+    opacity: 0; animation: fadeIn 1s forwards;
   }
-  #controls button:hover { background: #333; color: #ddd; }
-  #label { min-width: 250px; text-align: center; }
-  #sliders {
-    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-    z-index: 10; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
-    font: 11px sans-serif; color: #888; max-width: 800px;
+  .msg.left { align-self: flex-start; }
+  .msg.right { align-self: flex-end; }
+  .msg canvas.dissolve-canvas {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; border-radius: 12px;
   }
-  #sliders .ctrl { display: flex; flex-direction: column; gap: 2px; min-width: 110px; }
-  #sliders input { width: 100%; height: 4px; -webkit-appearance: none;
+  @keyframes fadeIn { to { opacity: 1; } }
+
+  /* ── Control panels ──────────────────────────────── */
+  .panel-btn {
+    position: fixed; z-index: 20; background: #222; color: #aaa;
+    border: 1px solid #444; border-radius: 4px; padding: 4px 12px;
+    cursor: pointer; font: 11px sans-serif;
+  }
+  .panel-btn:hover { background: #333; color: #ddd; }
+  #bg-toggle { top: 20px; left: 20px; }
+  #dust-toggle { top: 20px; left: 130px; }
+  #color-toggle { top: 20px; right: 20px; }
+  .ctrl-panel {
+    position: fixed; z-index: 20;
+    background: #1a1a1f; border: 1px solid #333; border-radius: 8px;
+    padding: 14px; width: 220px; display: none;
+    font: 11px sans-serif; color: #999;
+    max-height: 80vh; overflow-y: auto;
+  }
+  .ctrl-panel.open { display: block; }
+  #bg-panel { top: 50px; left: 20px; }
+  #dust-panel { top: 50px; left: 130px; }
+  #color-panel { top: 50px; right: 20px; }
+  .ctrl-panel .section { margin-bottom: 10px; }
+  .ctrl-panel .section-title { color: #bbb; margin-bottom: 6px; font-weight: bold; }
+  .ctrl-panel .row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .ctrl-panel .row label { min-width: 60px; }
+  .ctrl-panel .row span { min-width: 28px; text-align: right; }
+  .ctrl-panel input[type="range"] { flex: 1; height: 4px; -webkit-appearance: none;
     background: #333; border-radius: 2px; outline: none; }
-  #sliders input::-webkit-slider-thumb { -webkit-appearance: none;
+  .ctrl-panel input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none;
     width: 10px; height: 10px; background: #888; border-radius: 50%; cursor: pointer; }
+  .ctrl-panel .swatch { width: 16px; height: 16px; border-radius: 3px; border: 1px solid #555; display: inline-block; }
 </style>
 </head>
 <body>
-<canvas id="canvas"></canvas>
-<div id="sliders">
-  <div class="ctrl"><label>Dot opacity: <span id="s-dop">0.7</span></label>
-    <input type="range" id="sl-dop" min="0.1" max="1" value="0.7" step="0.05"></div>
-  <div class="ctrl"><label>Nodes: <span id="s-nden">25</span>/100kpx</label>
-    <input type="range" id="sl-nden" min="2" max="100" value="25" step="1"></div>
-  <div class="ctrl"><label>Dots: <span id="s-dcnt">100</span>/100kpx</label>
-    <input type="range" id="sl-dcnt" min="5" max="500" value="100" step="5"></div>
-  <div class="ctrl"><label>Dot velocity: <span id="s-dvel">0.4</span></label>
-    <input type="range" id="sl-dvel" min="0.05" max="1.5" value="0.4" step="0.05"></div>
-  <div class="ctrl"><label>Flow: <span id="s-dir">345</span>°</label>
-    <input type="range" id="sl-dir" min="0" max="359" value="345" step="1"></div>
+<canvas id="bg"></canvas>
+
+<!-- Chat messages container -->
+<div id="chat"></div>
+
+<!-- Panel toggles -->
+<button class="panel-btn" id="bg-toggle">Background</button>
+<button class="panel-btn" id="dust-toggle">Dissolution</button>
+<button class="panel-btn" id="color-toggle">Colors</button>
+
+<!-- Background panel -->
+<div class="ctrl-panel" id="bg-panel">
+  <div class="section">
+    <div class="section-title">DAG Flow</div>
+    <div class="row"><label>Opacity</label><input type="range" id="sl-dop" min="0.1" max="1" value="0.25" step="0.05"><span id="s-dop">0.25</span></div>
+    <div class="row"><label>Nodes</label><input type="range" id="sl-nden" min="2" max="100" value="25" step="1"><span id="s-nden">25</span></div>
+    <div class="row"><label>Dots</label><input type="range" id="sl-dcnt" min="5" max="500" value="100" step="5"><span id="s-dcnt">100</span></div>
+    <div class="row"><label>Velocity</label><input type="range" id="sl-dvel" min="0.05" max="1.5" value="0.4" step="0.05"><span id="s-dvel">0.4</span></div>
+    <div class="row"><label>Flow</label><input type="range" id="sl-dir" min="0" max="359" value="359" step="1"><span id="s-dir">359</span>°</div>
+  </div>
 </div>
+
+<!-- Dissolution panel -->
+<div class="ctrl-panel" id="dust-panel">
+  <div class="section">
+    <div class="section-title">Particle Physics</div>
+    <div class="row"><label>Density</label><input type="range" id="dl-density" min="1" max="15" value="4" step="1"><span id="dv-density">4</span></div>
+    <div class="row"><label>Drift</label><input type="range" id="dl-drift" min="0.1" max="8" value="4.6" step="0.1"><span id="dv-drift">4.6</span></div>
+    <div class="row"><label>Duration</label><input type="range" id="dl-duration" min="1" max="15" value="6" step="0.5"><span id="dv-duration">6</span>s</div>
+    <div class="row"><label>Text fade</label><input type="range" id="dl-textfade" min="0.2" max="2" value="0.5" step="0.1"><span id="dv-textfade">0.5</span>s</div>
+    <div class="row"><label>Hold time</label><input type="range" id="dl-holdtime" min="3" max="60" value="15" step="1"><span id="dv-holdtime">15</span>s</div>
+  </div>
+  <div class="section">
+    <div class="section-title">Fade & Shimmer</div>
+    <div class="row"><label>Fade var</label><input type="range" id="dl-fadevar" min="0" max="1" value="0.3" step="0.05"><span id="dv-fadevar">0.3</span></div>
+    <div class="row"><label>Shimmer</label><input type="range" id="dl-shimmer" min="0" max="1" value="0.4" step="0.05"><span id="dv-shimmer">0.4</span></div>
+  </div>
+  <div class="section">
+    <div class="section-title">Wind & Motion</div>
+    <div class="row"><label>Wind</label><input type="range" id="dl-wind" min="-2" max="2" value="-0.15" step="0.05"><span id="dv-wind">-0.15</span></div>
+    <div class="row"><label>Gravity</label><input type="range" id="dl-gravity" min="0" max="20" value="3" step="0.5"><span id="dv-gravity">3</span></div>
+    <div class="row"><label>Plume</label><input type="range" id="dl-plume" min="0" max="30" value="8" step="1"><span id="dv-plume">8</span></div>
+    <div class="row"><label>Curl</label><input type="range" id="dl-curl" min="0" max="5" value="1.2" step="0.1"><span id="dv-curl">1.2</span></div>
+    <div class="row"><label>Air res.</label><input type="range" id="dl-airres" min="0.9" max="0.999" value="0.985" step="0.001"><span id="dv-airres">0.985</span></div>
+    <div class="row"><label>Dir mix</label><input type="range" id="dl-dirmix" min="0" max="1" value="0.7" step="0.05"><span id="dv-dirmix">0.7</span></div>
+  </div>
+</div>
+
+<!-- Color panel -->
+<div class="ctrl-panel" id="color-panel">
+  <div class="section">
+    <div class="section-title">Background</div>
+    <div class="row"><label>Color</label><input type="color" id="cp-bg" value="#0e0c14" style="width:40px;height:24px;border:none;background:none;cursor:pointer;"></div>
+    <div class="row"><label>Hue</label><input type="range" id="c-bg-h" min="0" max="360" value="250"><span id="cv-bg-h">250</span></div>
+    <div class="row"><label>Sat</label><input type="range" id="c-bg-s" min="0" max="30" value="10"><span id="cv-bg-s">10</span></div>
+    <div class="row"><label>Light</label><input type="range" id="c-bg-l" min="0" max="15" value="4"><span id="cv-bg-l">4</span></div>
+  </div>
+  <div class="section">
+    <div class="section-title">Dots (background)</div>
+    <div class="row"><label>Color</label><input type="color" id="cp-dot" value="#7766aa" style="width:40px;height:24px;border:none;background:none;cursor:pointer;"></div>
+    <div class="row"><label>Hue</label><input type="range" id="c-dot-h" min="0" max="360" value="29"><span id="cv-dot-h">29</span></div>
+    <div class="row"><label>Sat</label><input type="range" id="c-dot-s" min="0" max="100" value="30"><span id="cv-dot-s">30</span></div>
+    <div class="row"><label>Light</label><input type="range" id="c-dot-l" min="10" max="90" value="65"><span id="cv-dot-l">65</span></div>
+    <div class="row"><label>Scatter</label><input type="range" id="c-dot-scatter" min="0" max="60" value="20"><span id="cv-dot-scatter">20</span></div>
+  </div>
+  <div class="section">
+    <div class="section-title">Text</div>
+    <div class="row"><label>Color</label><input type="color" id="cp-text" value="#e0ddd8" style="width:40px;height:24px;border:none;background:none;cursor:pointer;"></div>
+    <div class="row"><label>Hue</label><input type="range" id="c-text-h" min="0" max="360" value="40"><span id="cv-text-h">40</span></div>
+    <div class="row"><label>Sat</label><input type="range" id="c-text-s" min="0" max="30" value="30"><span id="cv-text-s">30</span></div>
+    <div class="row"><label>Light</label><input type="range" id="c-text-l" min="50" max="100" value="92"><span id="cv-text-l">92</span></div>
+  </div>
+  <div class="section">
+    <div class="section-title">Dust (dissolution)</div>
+    <div class="row"><label>Color</label><input type="color" id="cp-dust" value="#d4ccc0" style="width:40px;height:24px;border:none;background:none;cursor:pointer;"></div>
+    <div class="row"><label>Hue</label><input type="range" id="c-dust-h" min="0" max="360" value="38"><span id="cv-dust-h">38</span></div>
+    <div class="row"><label>Sat</label><input type="range" id="c-dust-s" min="0" max="60" value="40"><span id="cv-dust-s">40</span></div>
+    <div class="row"><label>Light</label><input type="range" id="c-dust-l" min="30" max="100" value="83"><span id="cv-dust-l">83</span></div>
+    <div class="row"><label>Scatter</label><input type="range" id="c-dust-scatter" min="0" max="60" value="15"><span id="cv-dust-scatter">15</span></div>
+  </div>
+</div>
+
 <script>
-const canvas = document.getElementById('canvas');
+// ─── Color system ───────────────────────────────────────
+function readColors() {
+  const g = id => parseFloat(document.getElementById(id).value);
+  return {
+    bg: { h: g('c-bg-h'), s: g('c-bg-s'), l: g('c-bg-l') },
+    dot: { h: g('c-dot-h'), s: g('c-dot-s'), l: g('c-dot-l'), scatter: g('c-dot-scatter') },
+    text: { h: g('c-text-h'), s: g('c-text-s'), l: g('c-text-l') },
+    dust: { h: g('c-dust-h'), s: g('c-dust-s'), l: g('c-dust-l'), scatter: g('c-dust-scatter') },
+  };
+}
+
+function hslStr(h, s, l, a) { return `hsla(${h},${s}%,${l}%,${a})`; }
+
+function scatteredHSL(base, a) {
+  const h = base.h + (Math.random() - 0.5) * base.scatter;
+  const s = Math.max(0, Math.min(100, base.s + (Math.random() - 0.5) * base.scatter * 0.5));
+  const l = Math.max(0, Math.min(100, base.l + (Math.random() - 0.5) * base.scatter * 0.3));
+  return hslStr(h, s, l, a);
+}
+
+function updateSwatches() {
+  const C = readColors();
+  document.body.style.background = hslStr(C.bg.h, C.bg.s, C.bg.l, 1);
+  // Sync color pickers
+  const cpBg = document.getElementById('cp-bg');
+  if (cpBg) cpBg.value = hslToHex(C.bg.h, C.bg.s, C.bg.l);
+  const cpDot = document.getElementById('cp-dot');
+  if (cpDot) cpDot.value = hslToHex(C.dot.h, C.dot.s, C.dot.l);
+  const cpText = document.getElementById('cp-text');
+  if (cpText) cpText.value = hslToHex(C.text.h, C.text.s, C.text.l);
+  const cpDust = document.getElementById('cp-dust');
+  if (cpDust) cpDust.value = hslToHex(C.dust.h, C.dust.s, C.dust.l);
+}
+
+// Panel toggles
+['bg', 'dust', 'color'].forEach(name => {
+  document.getElementById(name + '-toggle').addEventListener('click', () => {
+    document.getElementById(name + '-panel').classList.toggle('open');
+  });
+});
+
+// Read dissolution params
+function readDustParams() {
+  const g = id => parseFloat(document.getElementById(id).value);
+  return {
+    density: g('dl-density'), drift: g('dl-drift'), duration: g('dl-duration'),
+    textFade: g('dl-textfade'), fadeVariation: g('dl-fadevar'), shimmer: g('dl-shimmer'),
+    wind: g('dl-wind'), gravity: g('dl-gravity'), plumeSize: g('dl-plume'),
+    curlFreq: g('dl-curl'), airResistance: g('dl-airres'), directionMix: g('dl-dirmix'),
+  };
+}
+
+// Hex ↔ HSL helpers
+function hexToHSL(hex) {
+  let r = parseInt(hex.slice(1,3),16)/255, g = parseInt(hex.slice(3,5),16)/255, b = parseInt(hex.slice(5,7),16)/255;
+  const max = Math.max(r,g,b), min = Math.min(r,g,b), d = max-min;
+  let h=0, s=0, l=(max+min)/2;
+  if (d > 0) {
+    s = l > 0.5 ? d/(2-max-min) : d/(max+min);
+    if (max===r) h = ((g-b)/d+(g<b?6:0))*60;
+    else if (max===g) h = ((b-r)/d+2)*60;
+    else h = ((r-g)/d+4)*60;
+  }
+  return { h: Math.round(h), s: Math.round(s*100), l: Math.round(l*100) };
+}
+function hslToHex(h,s,l) {
+  s/=100; l/=100;
+  const a=s*Math.min(l,1-l);
+  const f=n=>{const k=(n+h/30)%12;return Math.round((l-a*Math.max(-1,Math.min(k-3,9-k,1)))*255);};
+  return '#'+[f(0),f(8),f(4)].map(v=>v.toString(16).padStart(2,'0')).join('');
+}
+
+// Sync color picker → HSL sliders
+['bg','dot','text','dust'].forEach(name => {
+  const cp = document.getElementById('cp-'+name);
+  if (!cp) return;
+  cp.addEventListener('input', () => {
+    const hsl = hexToHSL(cp.value);
+    document.getElementById('c-'+name+'-h').value = hsl.h;
+    document.getElementById('c-'+name+'-s').value = hsl.s;
+    document.getElementById('c-'+name+'-l').value = hsl.l;
+    document.getElementById('cv-'+name+'-h').textContent = hsl.h;
+    document.getElementById('cv-'+name+'-s').textContent = hsl.s;
+    document.getElementById('cv-'+name+'-l').textContent = hsl.l;
+    updateSwatches();
+    cancelAnimationFrame(animId); startEffect(0);
+  });
+});
+
+// HSL sliders → update color picker + labels + restart
+document.querySelectorAll('#color-panel input[type="range"]').forEach(inp => {
+  inp.addEventListener('input', () => {
+    document.querySelectorAll('#color-panel input[type="range"]').forEach(i => {
+      const span = document.getElementById('cv-' + i.id.slice(2));
+      if (span) span.textContent = i.value;
+    });
+    // Sync color pickers
+    ['bg','dot','text','dust'].forEach(name => {
+      const cp = document.getElementById('cp-'+name);
+      const hEl = document.getElementById('c-'+name+'-h');
+      const sEl = document.getElementById('c-'+name+'-s');
+      const lEl = document.getElementById('c-'+name+'-l');
+      if (cp && hEl && sEl && lEl) {
+        cp.value = hslToHex(+hEl.value, +sEl.value, +lEl.value);
+      }
+    });
+    updateSwatches();
+    cancelAnimationFrame(animId); startEffect(0);
+  });
+});
+
+// ─── Canvas setup ───────────────────────────────────────
+const canvas = document.getElementById('bg');
 let ctx, W, H, animId;
 
 function resize() {
@@ -60,27 +272,17 @@ function resize() {
   ctx.scale(devicePixelRatio, devicePixelRatio);
 }
 
-const effects = ['DAG Flow'];
-let current = 0;
-
-function updateLabel() {}
-
 // ─── Shared utils ───────────────────────────────────────
 function lerp(a, b, t) { return a + (b - a) * t; }
 function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
 
-// ─── Effect 0: DAG Flow ─────────────────────────────────
-// Nodes scattered randomly, edges only go left→right (DAG).
-// Edges don't cross. Small particles travel along edges.
-// Network extends beyond visible screen; particles born/die off-screen.
+// ─── DAG Flow background ───────────────────────────────
 function dagFlow() {
-  // Read slider params
+  const C = readColors();
   const P = {
-    netOpacity: 0,
     dotOpacity: parseFloat(document.getElementById('sl-dop').value),
     dotVelocity: parseFloat(document.getElementById('sl-dvel').value),
   };
-  // Density-based auto-scaling
   const MARGIN = 200;
   const totalW = W + 2 * MARGIN;
   const totalH = H + 2 * MARGIN;
@@ -96,189 +298,326 @@ function dagFlow() {
   });
 
   const CONNECT_DIST = 250;
-  // Flow direction vector
   const flowDx = Math.cos(P.flowAngle);
   const flowDy = Math.sin(P.flowAngle);
-
-  // Project node position onto flow axis
   function flowPos(n) { return n.x * flowDx + n.y * flowDy; }
 
-  // Generate nodes in extended area, sorted by flow direction
   let nodes = [];
   for (let i = 0; i < P.nodeCount; i++) {
-    nodes.push({
-      x: -200 + Math.random() * totalW,
-      y: -200 + Math.random() * totalH,
-      size: 1.5 + Math.random() * 2,
-      phase: Math.random() * Math.PI * 2,
-    });
+    nodes.push({ x: -200 + Math.random() * totalW, y: -200 + Math.random() * totalH,
+      size: 1.5 + Math.random() * 2, phase: Math.random() * Math.PI * 2 });
   }
   nodes.sort((a, b) => flowPos(a) - flowPos(b));
 
-  // Build edges: only connect i→j where j.x > i.x (DAG)
-  // Avoid crossings: for each candidate edge, check if it crosses existing ones
   const edges = [];
-
-  function segmentsCross(ax, ay, bx, by, cx, cy, dx, dy) {
-    const denom = (bx-ax)*(dy-cy) - (by-ay)*(dx-cx);
-    if (Math.abs(denom) < 0.001) return false;
-    const t = ((cx-ax)*(dy-cy) - (cy-ay)*(dx-cx)) / denom;
-    const u = ((cx-ax)*(by-ay) - (cy-ay)*(bx-ax)) / denom;
-    return t > 0.01 && t < 0.99 && u > 0.01 && u < 0.99;
+  function segmentsCross(ax,ay,bx,by,cx,cy,dx,dy) {
+    const denom=(bx-ax)*(dy-cy)-(by-ay)*(dx-cx);
+    if(Math.abs(denom)<0.001)return false;
+    const t=((cx-ax)*(dy-cy)-(cy-ay)*(dx-cx))/denom;
+    const u=((cx-ax)*(by-ay)-(cy-ay)*(bx-ax))/denom;
+    return t>0.01&&t<0.99&&u>0.01&&u<0.99;
   }
-
-  for (let i = 0; i < nodes.length; i++) {
-    // Try connecting to a few nearby nodes to the right
-    const candidates = [];
-    for (let j = i + 1; j < nodes.length; j++) {
-      const d = dist(nodes[i], nodes[j]);
-      const fwd = flowPos(nodes[j]) - flowPos(nodes[i]);
-      if (d < CONNECT_DIST && fwd > 20) {
-        candidates.push({ j, d });
-      }
+  for(let i=0;i<nodes.length;i++){
+    const candidates=[];
+    for(let j=i+1;j<nodes.length;j++){
+      const d=dist(nodes[i],nodes[j]);
+      const fwd=flowPos(nodes[j])-flowPos(nodes[i]);
+      if(d<CONNECT_DIST&&fwd>20) candidates.push({j,d});
     }
-    candidates.sort((a, b) => a.d - b.d);
-
-    // Take up to 2 connections per node
-    let added = 0;
-    for (const c of candidates) {
-      if (added >= 2) break;
-      const ni = nodes[i], nj = nodes[c.j];
-      // Check crossing with existing edges
-      let crosses = false;
-      for (const e of edges) {
-        if (segmentsCross(ni.x, ni.y, nj.x, nj.y,
-            nodes[e.from].x, nodes[e.from].y,
-            nodes[e.to].x, nodes[e.to].y)) {
-          crosses = true;
-          break;
-        }
+    candidates.sort((a,b)=>a.d-b.d);
+    let added=0;
+    for(const c of candidates){
+      if(added>=2)break;
+      const ni=nodes[i],nj=nodes[c.j];
+      let crosses=false;
+      for(const e of edges){
+        if(segmentsCross(ni.x,ni.y,nj.x,nj.y,nodes[e.from].x,nodes[e.from].y,nodes[e.to].x,nodes[e.to].y)){crosses=true;break;}
       }
-      if (!crosses) {
-        edges.push({ from: i, to: c.j });
-        added++;
-      }
+      if(!crosses){edges.push({from:i,to:c.j});added++;}
     }
   }
+  for(const e of edges){e.length=dist(nodes[e.from],nodes[e.to]);}
+  const outEdges=nodes.map(()=>[]);
+  for(let i=0;i<edges.length;i++) outEdges[edges[i].from].push(i);
 
-  // Precompute edge lengths
-  for (const e of edges) {
-    const a = nodes[e.from], b = nodes[e.to];
-    e.length = dist(a, b);
-  }
-
-  // Build outgoing edge index per node
-  const outEdges = nodes.map(() => []);
-  for (let i = 0; i < edges.length; i++) {
-    outEdges[edges[i].from].push(i);
-  }
-
-  // Each particle gets a random lifespan (number of hops before disappearing)
-  const particles = [];
-  function spawnParticle(stagger) {
-    if (edges.length === 0) return null;
-    // Born at a random node that has outgoing edges
-    const validNodes = [];
-    for (let i = 0; i < nodes.length; i++) {
-      if (outEdges[i].length > 0) validNodes.push(i);
-    }
-    if (validNodes.length === 0) return null;
-    const startNode = validNodes[Math.floor(Math.random() * validNodes.length)];
-    const startEdges = outEdges[startNode];
-    const ei = startEdges[Math.floor(Math.random() * startEdges.length)];
-    return {
-      edgeIndex: ei,
-      t: stagger ? Math.random() : 0,
-      speed: (0.2 + Math.random() * 0.4) * P.dotVelocity,
-      size: 0.8 + Math.random() * 1.2,
-      alpha: P.dotOpacity * (0.5 + Math.random() * 0.5),
-      hopsLeft: 2 + Math.floor(Math.random() * 6), // disappear after 2-7 hops
+  const particles=[];
+  function spawnParticle(stagger){
+    if(!edges.length)return null;
+    const valid=[];
+    for(let i=0;i<nodes.length;i++) if(outEdges[i].length>0)valid.push(i);
+    if(!valid.length)return null;
+    const sn=valid[Math.floor(Math.random()*valid.length)];
+    const se=outEdges[sn];
+    const ei=se[Math.floor(Math.random()*se.length)];
+    return {edgeIndex:ei, t:stagger?Math.random():0,
+      speed:(0.2+Math.random()*0.4)*P.dotVelocity,
+      size:0.8+Math.random()*1.2,
+      alpha:P.dotOpacity*(0.5+Math.random()*0.5),
+      hopsLeft:2+Math.floor(Math.random()*6),
+      color: scatteredHSL(C.dot, 1), // pre-compute scattered color
     };
   }
-  for (let i = 0; i < P.dotCount; i++) {
-    const p = spawnParticle(true);
-    if (p) particles.push(p);
-  }
+  for(let i=0;i<P.dotCount;i++){const p=spawnParticle(true);if(p)particles.push(p);}
 
-  let elapsed = 0;
-  function draw(dt) {
-    elapsed += dt;
-    ctx.clearRect(0, 0, W, H);
+  let elapsed=0;
+  function draw(dt){
+    elapsed+=dt;
+    ctx.clearRect(0,0,W,H);
 
-    // Draw edges
-    for (const e of edges) {
-      const a = nodes[e.from], b = nodes[e.to];
-      const pulse = Math.sin(elapsed * 0.5 + a.x * 0.005) * 0.5 + 0.5;
-      const alpha = (0.06 + pulse * 0.04) * P.netOpacity;
-      ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
-      ctx.strokeStyle = `rgba(60,50,80,${alpha * 5})`;
-      ctx.lineWidth = 0.8;
-      ctx.stroke();
-    }
-
-    // Draw nodes
-    for (const n of nodes) {
-      const pulse = Math.sin(elapsed * 0.4 + n.phase) * 0.5 + 0.5;
-      const alpha = (0.08 + pulse * 0.08) * P.netOpacity;
-      ctx.beginPath();
-      ctx.arc(n.x, n.y, n.size, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(80,65,110,${alpha * 5})`;
-      ctx.fill();
-    }
-
-    // Update and draw particles
-    for (const p of particles) {
-      p.t += p.speed * dt;
-      if (p.t >= 1) {
+    // Draw particles only (no edges/nodes since netOpacity=0)
+    for(const p of particles){
+      p.t+=p.speed*dt;
+      if(p.t>=1){
         p.hopsLeft--;
-        if (p.hopsLeft <= 0) {
-          // Disappear and respawn at a new random node
-          Object.assign(p, spawnParticle(false));
-          continue;
-        }
-        // Jump to a connected edge (follow the DAG)
-        const currentTo = edges[p.edgeIndex].to;
-        const next = outEdges[currentTo];
-        if (next.length > 0) {
-          p.edgeIndex = next[Math.floor(Math.random() * next.length)];
-          p.t = 0;
-        } else {
-          // No outgoing — respawn
-          Object.assign(p, spawnParticle(false));
-        }
+        if(p.hopsLeft<=0){Object.assign(p,spawnParticle(false));continue;}
+        const curTo=edges[p.edgeIndex].to;
+        const next=outEdges[curTo];
+        if(next.length>0){p.edgeIndex=next[Math.floor(Math.random()*next.length)];p.t=0;}
+        else{Object.assign(p,spawnParticle(false));}
       }
-
-      const e = edges[p.edgeIndex];
-      const a = nodes[e.from], b = nodes[e.to];
-      const x = lerp(a.x, b.x, p.t);
-      const y = lerp(a.y, b.y, p.t);
-
+      const e=edges[p.edgeIndex];
+      const a=nodes[e.from],b=nodes[e.to];
+      const x=lerp(a.x,b.x,p.t), y=lerp(a.y,b.y,p.t);
       ctx.beginPath();
-      ctx.arc(x, y, p.size, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(160,140,200,${p.alpha * P.dotOpacity})`;
+      ctx.arc(x,y,p.size,0,Math.PI*2);
+      ctx.fillStyle=p.color.replace(',1)',`,${p.alpha})`);
       ctx.fill();
     }
   }
   return draw;
 }
 
+// ─── Chat simulation with dissolution ───────────────────
+const CHAT_MESSAGES = [
+  { side: 'left', text: 'I want to begin by asking you about that morning, the morning everything changed in the village, the morning that divided your life into before and after — what happened, what do you remember, what was the first thing you noticed that told you this day would not be like the others?' },
+  { side: 'right', text: 'The soldiers came before dawn. We heard them first — boots on gravel, then shouting. My mother told us to hide under the floor.' },
+  { side: 'left', text: 'You mentioned hiding — I want to understand the details of that, who was with you, how many people were crowded together in that small space, and what it felt like to be so close to others while the world outside was falling apart, while everything you knew was being dismantled?' },
+  { side: 'right', text: 'Seven. My mother, my two sisters, my grandmother, and three neighbors. The youngest was four years old. We stayed there for two days.' },
+  { side: 'left', text: 'The sounds — I imagine the sounds were the worst part, being unable to see but hearing everything, every footstep, every voice, every moment of violence filtered through wooden boards and darkness. Can you describe what you heard from under the floor, and how those sounds have stayed with you since then?' },
+  { side: 'right', text: 'Everything. Glass breaking. Screaming. Then silence, which was worse. Silence meant they were searching room by room.' },
+  { side: 'left', text: 'There must have come a moment when you decided it was safe to emerge, or perhaps not safe but necessary — when the waiting became its own kind of unbearable. How did you know it was time to come out, who made that decision, and what did you find when you finally climbed out from under the floor into the light?' },
+  { side: 'right', text: 'On the third day. My grandmother said the silence had changed — it was empty now, not waiting. She was right. There was no one left.' },
+  { side: 'left', text: 'Of everything that happened during those days and the weeks that followed — the hiding, the walking, the loss, the silence — what is the single image or moment or detail that has stayed with you most vividly, the one that returns to you unbidden, that you cannot set down no matter how many years pass?' },
+  { side: 'right', text: 'The shoes. Rows of shoes by the road. That is what stays. Not the sounds, not the fire. The shoes, because each pair meant a person who would not walk home.' },
+  { side: 'left', text: 'After you emerged and saw what had become of the village, the emptiness where life had been, you must have had to make an impossible decision about where to go and how to survive — where did you go, and what was the journey like for a family that had just lost everything it knew?' },
+  { side: 'right', text: 'We walked east for three days. My grandmother could barely move but she refused to stop. She said if we stopped we would become part of the road, part of the dust. She had seen it happen before, in another war, in another lifetime.' },
+  { side: 'left', text: 'In situations like these, survival often depends on the kindness of strangers, on people who risk their own safety to help others they have never met and may never see again. Did you encounter anyone along the way who helped you, and what form did that help take in a landscape where helping was itself a dangerous act?' },
+  { side: 'right', text: 'A farmer let us sleep in his barn. He did not ask questions. He brought bread and water and closed the door. In the morning he was gone. We never learned his name. That is how kindness works in wartime — it is anonymous, because names are dangerous.' },
+  { side: 'left', text: 'You mentioned that some people chose to stay, or were unable to leave, or perhaps did not understand in time what was coming. What happened to those who remained in the village after you fled — do you know their fate, and how did you learn about it, and what does that knowledge do to you now?' },
+  { side: 'right', text: 'We heard later. The ones who stayed were gathered in the schoolyard. The teacher was made to read names from a list. Then they separated the men from the women. The men were taken to the woods. The women were put on trucks. The children were left standing in the schoolyard. Someone came back for them eventually, but by then they had stopped crying.' },
+  { side: 'left', text: 'Memory is a strange burden — it can be a duty, a prison, a form of resistance, or all of these at once. How do you carry these memories day to day, how do they shape the ordinary moments of your life, and has the weight of remembering changed over the years or does it remain as heavy as it was in the beginning?' },
+  { side: 'right', text: 'You do not carry it. It carries you. It decides when you wake at night. It decides when a sound — any sound, a door closing, a dog barking — sends you back. You learn to live beside it, like living beside a river that floods without warning.' },
+  { side: 'left', text: 'There is an ongoing debate about testimony — whether telling these stories serves the living or only reopens wounds, whether public memory heals or simply redistributes pain. Do you believe people should hear these stories, and if so, what do you hope the telling accomplishes that silence cannot?' },
+  { side: 'right', text: 'They must. Not because knowing prevents it — history has shown us that knowing is not enough. But because the silence is worse than the telling. Every story that goes unspoken becomes a ghost. And we have enough ghosts already.' },
+  { side: 'left', text: 'Denial is perhaps the final violence — the erasure not just of lives but of the record of those lives, the insistence that suffering was imagined or exaggerated or deserved. When you encounter someone who denies what happened, who refuses to acknowledge the reality of what you lived through, what do you say to them, and what do you feel?' },
+  { side: 'right', text: 'I would show them the shoes. I would take them to the road where the shoes still sit, covered in grass now, rusting. I would ask them to count. And when they cannot finish counting, when the number becomes too large to hold in their mind, I would say: each one. Each one was someone.' },
+  { side: 'left', text: 'In the midst of everything you have described — the violence, the loss, the long aftermath of grief that never fully resolves — is there anything at all that gives you hope, any moment or person or quality of human nature that makes you believe the world is capable of something other than what it did to your village?' },
+  { side: 'right', text: 'The farmer with the bread. The grandmother who kept walking. The teacher who whispered names to remember, even as she read from the list. These small acts — they do not undo what happened. Nothing undoes it. But they prove that even in the worst darkness, someone chose differently. That choice is the only evidence of God I have ever needed.' },
+  { side: 'left', text: 'Survival is often romanticized in our culture, turned into a narrative of triumph and resilience, but I suspect the reality is far more complicated and far less comfortable. What do you want people to understand about what survival actually means, what it costs, and what it looks like in the years and decades after the event itself?' },
+  { side: 'right', text: 'That it is not heroic. It is not a story with a beginning and an end. It is waking up every day inside a story that never ends. It is learning to eat breakfast while the past sits at the table with you. It is loving your children while knowing exactly what the world is capable of doing to them.' },
+  { side: 'left', text: 'If you could step outside of time for a moment, if you could return to any single moment in your life — not to change it, but simply to be there again, to see and hear and feel it one more time — which moment would you choose, and why does that particular moment call to you across all these years?' },
+  { side: 'right', text: 'The evening before. We were eating dinner. My father was telling a story about a fish he almost caught. My sisters were laughing. My grandmother was pretending to be annoyed. It was so ordinary. I did not know it was the last ordinary evening. If I could go back, I would not change anything. I would just watch more carefully. I would memorize the sound of my sisters laughing.' },
+  { side: 'left', text: 'When all of this is over, when you are no longer here to tell the story yourself, when the telling passes to others who were not there — how do you want to be remembered, what do you want your testimony to mean, and what would it take for you to feel that your words had been truly heard?' },
+  { side: 'right', text: 'As someone who told the truth. Not the comfortable truth, not the version that lets people sleep at night. The truth that wakes you up. The truth that says: this happened, and it can happen again, and the only thing standing between now and then is whether enough people decide to pay attention.' },
+  { side: 'left', text: 'Justice is a word that appears in constitutions and courtrooms and speeches, but I wonder what it means to someone who has lived through what you have lived through — has justice been served, can it ever be served, and what would justice even look like at this point, so many years later, when the perpetrators have aged and the witnesses have dwindled?' },
+  { side: 'right', text: 'Justice is a word that changes shape depending on how much you have lost. When you have lost everything, justice is simply being believed. It is someone looking you in the eye and saying: I hear you. What happened to you was real. You are not imagining it. You are not exaggerating. The world failed you, and that failure has a name, and we will not pretend otherwise.' },
+  { side: 'left', text: 'Forgiveness is perhaps the most difficult question one can ask of someone who has suffered as you have — theologians and philosophers debate it endlessly from the comfort of their studies, but you have lived it. Is forgiveness possible after what happened, do you feel any obligation to forgive, and what does the very concept of forgiveness mean to someone who has seen what you have seen?' },
+  { side: 'right', text: 'Forgiveness is a question for philosophers and priests. I am neither. I am a woman who hid under a floor while her neighbors were taken away. What I can tell you is that hatred takes energy I no longer have. I have given all my energy to remembering. There is nothing left for hate. Whether that is forgiveness, I do not know. It is simply what remains.' },
+  { side: 'left', text: 'Finally, I want to ask about the future — about the children and grandchildren who will inherit this history not as lived experience but as story, as lesson, as warning. What would you tell them, what do you most urgently need them to know, and what do you fear they might forget or misunderstand about what happened to your people?' },
+  { side: 'right', text: 'Learn the names. Not the names of the generals or the politicians. Learn the names of the people who disappeared. Learn the name of the four-year-old who hid with us under the floor. Her name was Mira. She had a toy rabbit with one ear. She never made a sound for two days. Four years old and she understood silence better than any of us. Learn her name. Say it out loud. That is how you fight forgetting.' },
+];
+
+let chatIndex = 0;
+let dissolveTimers = [];
+
+function getTextColor() {
+  const C = readColors();
+  return hslStr(C.text.h, C.text.s, C.text.l, 1);
+}
+
+function getMsgBgColor(alpha) {
+  const C = readColors();
+  return hslStr(C.bg.h, C.bg.s, C.bg.l + 6, alpha);
+}
+
+function addMessage() {
+  if (chatIndex >= CHAT_MESSAGES.length) chatIndex = 0;
+  const m = CHAT_MESSAGES[chatIndex++];
+  const C = readColors();
+  const chat = document.getElementById('chat');
+  const div = document.createElement('div');
+  div.className = `msg ${m.side}`;
+  div.textContent = m.text;
+  div.style.color = getTextColor();
+  div.style.background = 'none';
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+
+  const holdTime = parseFloat(document.getElementById('dl-holdtime').value) * 1000;
+  const timer = setTimeout(() => dissolveMessage(div), holdTime);
+  dissolveTimers.push(timer);
+
+  // Add next message after 8 seconds
+  setTimeout(addMessage, 8000);
+}
+
+function dissolveMessage(el) {
+  const C = readColors();
+  const rect = el.getBoundingClientRect();
+  const w = Math.round(rect.width);
+  const h = Math.round(rect.height);
+  if (w < 1 || h < 1) return;
+
+  // Create canvas overlay
+  const cv = document.createElement('canvas');
+  cv.className = 'dissolve-canvas';
+  cv.width = w * devicePixelRatio;
+  cv.height = h * devicePixelRatio;
+  cv.style.width = w + 'px';
+  cv.style.height = h + 'px';
+  el.style.position = 'relative';
+  el.appendChild(cv);
+  const dctx = cv.getContext('2d');
+  dctx.scale(devicePixelRatio, devicePixelRatio);
+
+  // Sample text pixels
+  const offscreen = document.createElement('canvas');
+  offscreen.width = w; offscreen.height = h;
+  const octx = offscreen.getContext('2d');
+  const style = getComputedStyle(el);
+  octx.font = style.font;
+  octx.fillStyle = getTextColor();
+  octx.textBaseline = 'top';
+  const lineH = parseInt(style.lineHeight) || 24;
+  const padL = parseInt(style.paddingLeft) || 18;
+  const padT = parseInt(style.paddingTop) || 12;
+  const maxW = w - padL * 2;
+  const words = el.textContent.split(' ');
+  const lines = []; let line = '';
+  for (const wd of words) {
+    const test = line ? line + ' ' + wd : wd;
+    if (octx.measureText(test).width > maxW && line) { lines.push(line); line = wd; }
+    else { line = test; }
+  }
+  if (line) lines.push(line);
+  lines.forEach((l, i) => octx.fillText(l, padL, padT + i * lineH));
+
+  const DP = readDustParams();
+  const imgData = octx.getImageData(0, 0, w, h).data;
+  const step = Math.max(1, 3 - Math.min(DP.density, 3));
+  const copies = Math.max(1, Math.round(DP.density / 3));
+  const dustParticles = [];
+  for (let y = 0; y < h; y += step) {
+    for (let x = 0; x < w; x += step) {
+      if (imgData[(y * w + x) * 4 + 3] > 128) {
+        for (let cp = 0; cp < copies; cp++) {
+        const px = x + (Math.random()-0.5)*2, py = y + (Math.random()-0.5)*2;
+        let bvx, bvy;
+        if (Math.random() > DP.directionMix) {
+          bvx = DP.wind*30 + (Math.random()-0.5)*10;
+          bvy = DP.gravity*0.5 + (Math.random()-0.5)*8;
+        } else {
+          const behavior = Math.random();
+          if (behavior < 0.35) { bvy = -(8 + Math.random() * 18); bvx = (Math.random() - 0.5) * 12 + DP.wind*15; }
+          else if (behavior < 0.6) { bvx = DP.wind*20 + (Math.random() - 0.5) * 20; bvy = (Math.random() - 0.5) * 10; }
+          else { bvx = (Math.random() - 0.5) * 15 + DP.wind*10; bvy = 8 + Math.random() * 20; }
+        }
+        dustParticles.push({
+          ox: px, oy: py, x: px, y: py, vx: 0, vy: 0,
+          baseVx: bvx, baseVy: bvy, plumeId: -1,
+          life: 1, alpha: 1,
+          fadeRate: 1 / (1 + DP.fadeVariation * (-Math.log(1 - Math.random()))),
+          shimmerFreq: 2 + Math.random() * 4,
+          shimmerPhase: Math.random() * Math.PI * 2,
+          shimmerAmp: DP.shimmer * (0.5 + Math.random() * 0.5),
+          turbPhase: Math.random() * Math.PI * 2,
+          size: 0.3 + Math.random() * 0.9,
+          color: scatteredHSL(C.dust, 1),
+        });
+        }
+      }
+    }
+  }
+  // Plume grouping
+  if (DP.plumeSize > 0) {
+    let pi = 0;
+    for (let i = 0; i < dustParticles.length; i += DP.plumeSize) {
+      const pvx = (Math.random()-0.5)*40 + DP.wind*20;
+      const pvy = (Math.random()-0.5)*30;
+      for (let j = i; j < Math.min(i + DP.plumeSize, dustParticles.length); j++) {
+        dustParticles[j].plumeId = pi;
+        dustParticles[j].baseVx = dustParticles[j].baseVx*0.4 + pvx*0.6;
+        dustParticles[j].baseVy = dustParticles[j].baseVy*0.4 + pvy*0.6;
+        dustParticles[j].plumeCurlPhase = Math.random() * Math.PI * 2;
+      }
+      pi++;
+    }
+  }
+
+  let elapsed = 0;
+  const duration = DP.duration;
+  const textFade = DP.textFade;
+  const drift = DP.drift;
+
+  function animateDust() {
+    const now = performance.now();
+    const dt = Math.min((now - (animateDust._last || now)) / 1000, 0.05);
+    animateDust._last = now;
+    elapsed += dt;
+
+    dctx.clearRect(0, 0, w, h);
+
+    // Fade original text and background
+    const tf = Math.max(0, 1 - elapsed / textFade);
+    el.style.color = hslStr(C.text.h, C.text.s, C.text.l, tf);
+
+    let alive = 0;
+    for (const p of dustParticles) {
+      if (p.life <= 0) continue;
+      const ramp = Math.min(elapsed / 0.8, 1);
+      let curlX = 0, curlY = 0;
+      if (p.plumeId >= 0) {
+        curlX = Math.sin(elapsed * DP.curlFreq + (p.plumeCurlPhase||0)) * 15;
+        curlY = Math.cos(elapsed * DP.curlFreq * 0.7 + (p.plumeCurlPhase||0)) * 10;
+      }
+      p.vx += (DP.wind * 5 + curlX * 0.3 + Math.sin(elapsed * 0.8 + p.turbPhase) * 5) * dt * drift;
+      p.vy += (DP.gravity + curlY * 0.2) * dt * drift;
+      p.vx += p.baseVx * ramp * 0.5 * dt * drift;
+      p.vy += p.baseVy * ramp * 0.5 * dt * drift;
+      p.vx *= DP.airResistance; p.vy *= DP.airResistance;
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      p.life -= (p.fadeRate / duration) * dt;
+      const curve = p.life * p.life * p.life;
+      const shimmer = 1 - p.shimmerAmp + p.shimmerAmp * Math.sin(elapsed * p.shimmerFreq + p.shimmerPhase);
+      p.alpha = Math.max(0, curve * shimmer);
+      if (p.alpha < 0.001) { p.life = 0; continue; }
+      alive++;
+      dctx.fillStyle = p.color.replace(',1)', `,${p.alpha})`);
+      dctx.fillRect(p.x - p.size * 0.5, p.y - p.size * 0.5, p.size, p.size);
+    }
+
+    if (elapsed < duration || alive > 20) {
+      requestAnimationFrame(animateDust);
+    } else {
+      // Remove element after dissolution
+      setTimeout(() => el.remove(), 500);
+    }
+  }
+  animateDust._last = performance.now();
+  requestAnimationFrame(animateDust);
+}
 
 // ─── Animation loop ─────────────────────────────────────
-const effectFns = [dagFlow];
 let drawFn = null;
 let lastTime = 0;
+let current = 0;
 
 function startEffect(index) {
   cancelAnimationFrame(animId);
   resize();
+  updateSwatches();
   ctx.clearRect(0, 0, W, H);
-  current = index;
-  updateLabel();
-  // Show sliders only for DAG Flow (index 0)
-  document.getElementById('sliders').style.display = index === 0 ? 'flex' : 'none';
-  drawFn = effectFns[index]();
+  drawFn = dagFlow();
   lastTime = performance.now();
   loop();
 }
@@ -292,23 +631,31 @@ function loop() {
 }
 
 // ─── Controls ───────────────────────────────────────────
-window.addEventListener('resize', () => startEffect(current));
-
-// Slider events — update labels and restart DAG
-document.querySelectorAll('#sliders input').forEach(inp => {
+window.addEventListener('resize', () => startEffect(0));
+// Background panel sliders — restart DAG
+document.querySelectorAll('#bg-panel input').forEach(inp => {
   inp.addEventListener('input', () => {
-    // Update all labels
-    document.getElementById('s-dop').textContent = document.getElementById('sl-dop').value;
-    document.getElementById('s-nden').textContent = document.getElementById('sl-nden').value;
-    document.getElementById('s-dcnt').textContent = document.getElementById('sl-dcnt').value;
-    document.getElementById('s-dop').textContent = document.getElementById('sl-dop').value;
-    document.getElementById('s-dvel').textContent = document.getElementById('sl-dvel').value;
-    document.getElementById('s-dir').textContent = document.getElementById('sl-dir').value;
-    if (current === 0) { cancelAnimationFrame(animId); startEffect(0); }
+    document.querySelectorAll('#bg-panel input').forEach(i => {
+      const span = document.getElementById('s-' + i.id.slice(3));
+      if (span) span.textContent = i.value;
+    });
+    cancelAnimationFrame(animId); startEffect(0);
+  });
+});
+// Dissolution panel sliders — update labels only (applied on next dissolve)
+document.querySelectorAll('#dust-panel input').forEach(inp => {
+  inp.addEventListener('input', () => {
+    document.querySelectorAll('#dust-panel input').forEach(i => {
+      const span = document.getElementById('dv-' + i.id.slice(3));
+      if (span) span.textContent = i.value;
+    });
   });
 });
 
+// ─── Start ──────────────────────────────────────────────
+updateSwatches();
 startEffect(0);
+setTimeout(addMessage, 1000);
 </script>
 </body>
 </html>
