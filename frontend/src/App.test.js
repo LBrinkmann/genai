@@ -37,11 +37,19 @@ beforeAll(() => {
     stroke: jest.fn(),
     moveTo: jest.fn(),
     lineTo: jest.fn(),
+    fillText: jest.fn(),
+    measureText: jest.fn(() => ({ width: 50 })),
+    getImageData: jest.fn(() => ({
+      data: new Uint8ClampedArray(0),
+    })),
     fillStyle: '',
     strokeStyle: '',
     lineWidth: 1,
     shadowColor: '',
     shadowBlur: 0,
+    globalAlpha: 1,
+    font: '',
+    textBaseline: '',
   }));
 });
 
