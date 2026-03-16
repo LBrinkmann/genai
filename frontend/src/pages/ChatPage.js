@@ -22,7 +22,6 @@ function ChatPage() {
     loading: configLoading,
     error: configError,
     configName,
-    accessKey,
     loggingEnabled,
   } = useConfig();
 
@@ -251,7 +250,6 @@ function ChatPage() {
         }}
       >
         <Header
-          accessKey={accessKey}
           onReset={handleReset}
           configName={configName}
           onBotStatuses={handleBotStatuses}

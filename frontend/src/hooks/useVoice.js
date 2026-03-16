@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { fetchTTSAudio } from '../services/audio';
 
 export default function useVoice({ enabled = false }) {
@@ -65,6 +65,21 @@ export default function useVoice({ enabled = false }) {
     setIsPlaying(false);
     setPlayingIndex(null);
     processingRef.current = false;
+  }, []);
+
+  // Cleanup on unmount: stop audio and clear queue
+  useEffect(() => {
+    return () => {
+      queueRef.current = [];
+      if (audioRef.current) {
+        audioRef.current.pause();
+        if (audioRef.current.src) {
+          URL.revokeObjectURL(audioRef.current.src);
+        }
+        audioRef.current = null;
+      }
+      processingRef.current = false;
+    };
   }, []);
 
   const toggleMute = useCallback(() => {

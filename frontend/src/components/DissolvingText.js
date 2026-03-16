@@ -15,7 +15,6 @@ const PARTICLE_SIZE_MAX = 2.5;
 const GRAVITY = 0.08;
 const WIND_RANGE = 0.3;
 const FADE_SPEED = 0.004;
-const SAMPLE_STEP = 3;
 
 function DissolvingText({ children, scrollRef }) {
   const canvasRef = useRef(null);

@@ -13,6 +13,9 @@ from app.tts import KOKORO_VOICES, synthesize_speech
 router = APIRouter(prefix="/api", tags=["tts"])
 
 
+MAX_TTS_TEXT_LENGTH = 5000
+
+
 class TTSRequest(BaseModel):
     """Request body for TTS synthesis."""
 
@@ -20,9 +23,19 @@ class TTSRequest(BaseModel):
     voice: Optional[str] = None
 
 
+# TODO: Add rate-limiting for production use.
 @router.post("/tts")
 async def tts(request: TTSRequest) -> Response:
     """Synthesize speech from text and return audio."""
+    if len(request.text) > MAX_TTS_TEXT_LENGTH:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Text exceeds maximum length of "
+                f"{MAX_TTS_TEXT_LENGTH} characters"
+            ),
+        )
+
     cfg = get_config()
     if not cfg.tts.enabled:
         raise HTTPException(
