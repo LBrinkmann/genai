@@ -6,6 +6,8 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - HF_INFERENCE_TOKEN=${HF_INFERENCE_TOKEN}
       - CORS_ORIGIN=${CORS_ORIGIN}
+      - TTS_API_URL=${TTS_API_URL:-}
+      - TTS_API_KEY=${TTS_API_KEY:-}
     volumes:
       - ./config:/app/config:ro
     command: >

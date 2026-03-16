@@ -11,6 +11,8 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - HF_INFERENCE_TOKEN=${HF_INFERENCE_TOKEN}
       - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3000}
+      - TTS_API_URL=${TTS_API_URL:-}
+      - TTS_API_KEY=${TTS_API_KEY:-}
     command: >
       uvicorn app.main:app
       --host 0.0.0.0

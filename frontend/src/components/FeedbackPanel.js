@@ -30,7 +30,10 @@ function FeedbackPanel({
   if (confirmed) {
     return (
       <Box sx={{ py: 1, px: 2 }}>
-        <Typography variant="caption" color="text.secondary">
+        <Typography
+          variant="caption"
+          sx={{ color: 'text.secondary', opacity: 0.5 }}
+        >
           Feedback submitted
         </Typography>
       </Box>
@@ -49,36 +52,56 @@ function FeedbackPanel({
       }}
     >
       {mainPreferenceFeedback && (
-        <Typography variant="body2" color="text.secondary">
+        <Typography
+          variant="body2"
+          sx={{ color: 'text.secondary', opacity: 0.7 }}
+        >
           {mainPreferenceFeedback}
         </Typography>
       )}
       {categories.length > 0 && (
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+        <Box
+          sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}
+        >
           {categories.map((cat) => (
             <Chip
               key={cat}
               label={cat}
-              variant={
-                selectedTags.includes(cat)
-                  ? 'filled'
-                  : 'outlined'
-              }
-              color={
-                selectedTags.includes(cat)
-                  ? 'primary'
-                  : 'default'
-              }
+              variant="outlined"
               onClick={() => toggleTag(cat)}
-              sx={{ cursor: 'pointer' }}
+              sx={{
+                cursor: 'pointer',
+                borderColor: selectedTags.includes(cat)
+                  ? 'primary.main'
+                  : 'rgba(255,255,255,0.12)',
+                color: selectedTags.includes(cat)
+                  ? 'primary.main'
+                  : 'text.secondary',
+                bgcolor: selectedTags.includes(cat)
+                  ? 'rgba(196, 163, 90, 0.08)'
+                  : 'transparent',
+                '&:hover': {
+                  borderColor: 'primary.light',
+                },
+              }}
             />
           ))}
         </Box>
       )}
       <Button
-        variant="contained"
+        variant="outlined"
         size="small"
         onClick={handleConfirm}
+        sx={{
+          borderColor: 'rgba(255,255,255,0.12)',
+          color: 'text.secondary',
+          textTransform: 'none',
+          fontSize: '0.75rem',
+          '&:hover': {
+            borderColor: 'primary.main',
+            color: 'primary.main',
+          },
+        }}
       >
         Confirm selection
       </Button>

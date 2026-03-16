@@ -1,26 +1,28 @@
 import { useState, useEffect, useCallback } from 'react';
-import AppBar from '@mui/material/AppBar';
-import Toolbar from '@mui/material/Toolbar';
+import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
 import Tooltip from '@mui/material/Tooltip';
-import SettingsIcon from '@mui/icons-material/Settings';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import VolumeUpIcon from '@mui/icons-material/VolumeUp';
+import VolumeOffIcon from '@mui/icons-material/VolumeOff';
 import client from '../services/api';
 
 const statusColors = {
-  online: '#4caf50',
-  loading: '#ff9800',
-  error: '#f44336',
+  online: '#4a6a4a',
+  loading: '#8a7a3a',
+  error: '#6a3a3a',
 };
 
-function Header({ accessKey, onReset, configName }) {
+function Header({
+  onReset,
+  configName,
+  onBotStatuses,
+  ttsEnabled = false,
+  muted = false,
+  onToggleMute,
+}) {
   const [botStatuses, setBotStatuses] = useState([]);
-  const [anchorEl, setAnchorEl] = useState(null);
 
   const checkStatus = useCallback(async () => {
     if (!configName) return;
@@ -28,125 +30,120 @@ function Header({ accessKey, onReset, configName }) {
       const resp = await client.get(
         `/api/health/bots?config=${encodeURIComponent(configName)}`
       );
-      setBotStatuses(resp.data.bots || []);
+      const statuses = resp.data.bots || [];
+      setBotStatuses(statuses);
+      if (onBotStatuses) onBotStatuses(statuses);
     } catch {
       setBotStatuses([]);
+      if (onBotStatuses) onBotStatuses([]);
     }
-  }, [configName]);
+  }, [configName, onBotStatuses]);
 
   useEffect(() => {
     checkStatus();
-    // Poll every 10s while any bot is not online
     const interval = setInterval(() => {
       checkStatus();
     }, 10000);
     return () => clearInterval(interval);
   }, [checkStatus]);
 
-  // Aggregate status: worst of all bots
-  const aggregateStatus = botStatuses.length === 0
-    ? 'loading'
-    : botStatuses.every((b) => b.status === 'online')
-      ? 'online'
-      : botStatuses.some((b) => b.status === 'error')
-        ? 'error'
-        : 'loading';
-
   const tooltipText = botStatuses.length === 0
     ? 'Checking...'
     : botStatuses.map((b) => `${b.name}: ${b.status}`).join(', ');
 
   return (
-    <AppBar
-      position="static"
-      elevation={1}
-      sx={{ bgcolor: 'background.paper', color: 'text.primary' }}
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        px: { xs: 2, sm: 3 },
+        py: 1.5,
+        borderBottom: '1px solid',
+        borderColor: 'divider',
+        background: 'rgba(10,10,15,0.8)',
+        backdropFilter: 'blur(8px)',
+        zIndex: 10,
+      }}
     >
-      <Toolbar>
-        <Typography
-          variant="h6"
-          component="div"
-          sx={{ fontWeight: 600 }}
-        >
-          GenAI Chat
-        </Typography>
-        <Tooltip title={tooltipText} arrow>
-          <Box sx={{ display: 'flex', gap: 0.5, ml: 1.5 }}>
-            {botStatuses.length === 0 ? (
+      <Typography
+        variant="h6"
+        component="div"
+        sx={{
+          fontFamily: '"Playfair Display", serif',
+          fontWeight: 500,
+          letterSpacing: '0.05em',
+          color: 'text.primary',
+          fontSize: { xs: '1rem', sm: '1.15rem' },
+        }}
+      >
+        GENocideAI
+      </Typography>
+      <Tooltip title={tooltipText} arrow>
+        <Box sx={{ display: 'flex', gap: 0.5, ml: 1.5 }}>
+          {botStatuses.length === 0 ? (
+            <Box
+              sx={{
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                bgcolor: statusColors.loading,
+              }}
+              data-testid="status-indicator"
+            />
+          ) : (
+            botStatuses.map((b) => (
               <Box
+                key={b.name}
                 sx={{
-                  width: 10,
-                  height: 10,
+                  width: 6,
+                  height: 6,
                   borderRadius: '50%',
-                  bgcolor: statusColors.loading,
+                  bgcolor:
+                    statusColors[b.status] || statusColors.error,
                 }}
+                title={`${b.name}: ${b.status}`}
                 data-testid="status-indicator"
               />
-            ) : (
-              botStatuses.map((b) => (
-                <Box
-                  key={b.name}
-                  sx={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: '50%',
-                    bgcolor: statusColors[b.status] || statusColors.error,
-                  }}
-                  title={`${b.name}: ${b.status}`}
-                  data-testid="status-indicator"
-                />
-              ))
-            )}
-          </Box>
-        </Tooltip>
-        <Box sx={{ flexGrow: 1 }} />
-        <Tooltip title="New conversation" arrow>
+            ))
+          )}
+        </Box>
+      </Tooltip>
+      <Box sx={{ flexGrow: 1 }} />
+      {ttsEnabled && (
+        <Tooltip title={muted ? 'Unmute voice' : 'Mute voice'} arrow>
           <IconButton
-            color="inherit"
-            onClick={() => { if (onReset) onReset(); }}
+            onClick={() => { if (onToggleMute) onToggleMute(); }}
             size="small"
-            sx={{ mr: 0.5 }}
+            sx={{
+              color: 'text.secondary',
+              opacity: muted ? 0.3 : 0.5,
+              mr: 0.5,
+              '&:hover': { opacity: 0.8 },
+            }}
+            data-testid="mute-toggle"
           >
-            <RefreshIcon />
+            {muted ? (
+              <VolumeOffIcon fontSize="small" />
+            ) : (
+              <VolumeUpIcon fontSize="small" />
+            )}
           </IconButton>
         </Tooltip>
+      )}
+      <Tooltip title="New conversation" arrow>
         <IconButton
-          edge="end"
-          color="inherit"
-          onClick={(e) => setAnchorEl(e.currentTarget)}
+          onClick={() => { if (onReset) onReset(); }}
+          size="small"
+          sx={{
+            color: 'text.secondary',
+            opacity: 0.5,
+            '&:hover': { opacity: 0.8 },
+          }}
         >
-          <SettingsIcon />
+          <RefreshIcon fontSize="small" />
         </IconButton>
-        <Menu
-          anchorEl={anchorEl}
-          open={Boolean(anchorEl)}
-          onClose={() => setAnchorEl(null)}
-        >
-          {accessKey && (
-            <MenuItem>
-              <Button
-                size="small"
-                variant="outlined"
-                color="error"
-                onClick={() => {
-                  setAnchorEl(null);
-                  if (onReset) onReset();
-                }}
-              >
-                Reset conversation
-              </Button>
-            </MenuItem>
-          )}
-          {!accessKey && (
-            <MenuItem disabled>
-              <Typography variant="body2">
-                No admin controls
-              </Typography>
-            </MenuItem>
-          )}
-        </Menu>
-      </Toolbar>
-    </AppBar>
+      </Tooltip>
+    </Box>
   );
 }
 

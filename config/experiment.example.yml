@@ -28,3 +28,8 @@ feedback_configs:
     bots: ["gpt-4"]
     main_preference_feedback: ""
     additional_categories: []
+
+tts:
+  enabled: false
+  api_url: "https://your-tts-endpoint.endpoints.huggingface.cloud/v1/audio/speech"
+  api_key: "${TTS_API_KEY}"
