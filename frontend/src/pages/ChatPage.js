@@ -14,6 +14,7 @@ import useConfig from '../hooks/useConfig';
 import useSession from '../hooks/useSession';
 import useChat from '../hooks/useChat';
 import { saveMessage } from '../services/api';
+import { pulseKeyframes } from '../theme';
 
 function ChatPage() {
   const {
@@ -21,7 +22,6 @@ function ChatPage() {
     loading: configLoading,
     error: configError,
     configName,
-    accessKey,
     loggingEnabled,
   } = useConfig();
 
@@ -144,10 +144,7 @@ function ChatPage() {
             bgcolor: 'primary.main',
             borderRadius: 1,
             animation: 'pulse 1.5s ease-in-out infinite',
-            '@keyframes pulse': {
-              '0%, 100%': { opacity: 0.3 },
-              '50%': { opacity: 0.8 },
-            },
+            ...pulseKeyframes,
             zIndex: 1,
           }}
         />
@@ -204,7 +201,6 @@ function ChatPage() {
         }}
       >
         <Header
-          accessKey={accessKey}
           onReset={handleReset}
           configName={configName}
           onBotStatuses={handleBotStatuses}

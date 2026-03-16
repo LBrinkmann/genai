@@ -50,4 +50,11 @@ const theme = createTheme({
   },
 });
 
+export const pulseKeyframes = {
+  '@keyframes pulse': {
+    '0%, 100%': { opacity: 0.3 },
+    '50%': { opacity: 0.8 },
+  },
+};
+
 export default theme;

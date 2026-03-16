@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
+import { pulseKeyframes } from '../theme';
 
 function MessageInput({ onSend, disabled = false }) {
   const [value, setValue] = useState('');
@@ -80,10 +81,7 @@ function MessageInput({ onSend, disabled = false }) {
               bgcolor: 'primary.main',
               borderRadius: 1,
               animation: 'pulse 1.5s ease-in-out infinite',
-              '@keyframes pulse': {
-                '0%, 100%': { opacity: 0.3 },
-                '50%': { opacity: 0.8 },
-              },
+              ...pulseKeyframes,
             }}
           />
         </Box>
