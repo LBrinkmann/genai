@@ -3,6 +3,22 @@ defaults:
   log: true
 
 bots:
+  # Debug bots (GPT-4o)
+  - name: "gpt4o-a"
+    display_name: "GENocideAI"
+    model: "gpt-4o"
+    api_url: "https://api.openai.com/v1/chat/completions"
+    api_key: "${OPENAI_API_KEY}"
+    system_message: "You are a helpful assistant."
+
+  - name: "gpt4o-b"
+    display_name: "GENocideAI"
+    model: "gpt-4o"
+    api_url: "https://api.openai.com/v1/chat/completions"
+    api_key: "${OPENAI_API_KEY}"
+    system_message: "You are a helpful assistant."
+
+  # Production bots (HF custom model)
   - name: "genocideai-a"
     display_name: "GENocideAI"
     model: "NoraAl/GENocideAI-01"
@@ -18,12 +34,27 @@ bots:
     system_message: ""
 
 feedback_configs:
+  # Debug configs (GPT-4o)
   - name: "default"
-    bots: ["genocideai-a"]
+    bots: ["gpt4o-a"]
     main_preference_feedback: ""
     additional_categories: []
 
   - name: "comparison"
+    bots: ["gpt4o-a", "gpt4o-b"]
+    main_preference_feedback: "I prefer this response"
+    additional_categories:
+      - "Stronger identification"
+      - "More accurate"
+      - "Better tone"
+
+  # Production configs (HF model)
+  - name: "prod-default"
+    bots: ["genocideai-a"]
+    main_preference_feedback: ""
+    additional_categories: []
+
+  - name: "prod-comparison"
     bots: ["genocideai-a", "genocideai-b"]
     main_preference_feedback: "I prefer this response"
     additional_categories:
