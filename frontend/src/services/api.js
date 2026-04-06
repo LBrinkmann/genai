@@ -1,8 +1,9 @@
 import axios from 'axios';
-import * as mock from './mockApi';
 
 const USE_MOCK =
   process.env.REACT_APP_MOCK_API === 'true';
+
+const mock = USE_MOCK ? require('./mockApi') : null;
 
 const API_URL =
   process.env.REACT_APP_API_URL || 'http://localhost:8000';
