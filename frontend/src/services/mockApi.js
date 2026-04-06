@@ -6,7 +6,6 @@
 const MOCK_CONFIG = {
   bots: [
     { name: 'bot-alpha', display_name: 'Alpha' },
-    { name: 'bot-beta', display_name: 'Beta' },
   ],
   additional_categories: [
     'Helpful',
