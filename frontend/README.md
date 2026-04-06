@@ -1,6 +1,29 @@
-# Getting Started with Create React App
+# GenAI Chat Frontend
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+## Mock Mode (no backend required)
+
+Run the frontend standalone with canned bot responses — no backend, database, or API keys needed.
+
+```bash
+cd frontend
+npm install
+REACT_APP_MOCK_API=true npm start
+```
+
+Or copy the provided env file:
+
+```bash
+cp .env.mock .env.local
+npm start
+```
+
+Open [http://localhost:3000](http://localhost:3000). The mock provides:
+- A single bot ("Alpha") with varied canned responses
+- Simulated network latency (300–1200ms)
+- Working session management, feedback, and health indicators
+- Edit `src/services/mockApi.js` to add a second bot for RLHF comparison mode
+
+To switch back to the real backend, remove `.env.local` or set `REACT_APP_MOCK_API=false`.
 
 ## Available Scripts
 
