@@ -4,6 +4,7 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import theme from './theme';
 import ChatPage from './pages/ChatPage';
+import EffectSandbox from './pages/__EffectSandbox';
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<ChatPage />} />
+          <Route path="/__effect-sandbox" element={<EffectSandbox />} />
         </Routes>
       </BrowserRouter>
     </ThemeProvider>
