@@ -1,4 +1,4 @@
-# [ACTIVE] Frontend Design Integration: GENocideAI dummy → production frontend
+# [DONE] Frontend Design Integration: GENocideAI dummy → production frontend
 
 ## Goal
 
@@ -474,4 +474,15 @@ config/experiment.yml (sample)                     (illustrate new fields)
 
 ## Status updates
 
-(append phase completions here as they land)
+| Phase | Status | Date | Commit(s) | Notes |
+|---|---|---|---|---|
+| 0 — Foundation | DONE | 2026-05-14 | `51e7201`, `56977df`, `4e010d6` | SSH key infra + ACTIVE plan + `pull-assets` subcommand + Tailwind/PostCSS/CRACO+theme/index.html. Mid-stream working-tree race between parallel engineers reverted index.html briefly; the later commit reapplied. Tester PASS. |
+| 0.5 — CRACO build fix | DONE | 2026-05-14 | `de9d5db` | Phase 3 surfaced that CRA 5's css-loader chokes on `url('/...')` paths. Switched scripts to `craco` with `style.css.loaderOptions.url = false`. |
+| 1 — Dissolve effect + reduced motion | DONE | 2026-05-14 | `4654ed9` | Three effect files ported verbatim into `frontend/src/components/effects/`. `useReducedMotion` hook + `ReducedMotionMessageBody` share the canvas path's lifecycle contract (200 ms fade vs 6 s canvas dissolve). Tester PASS in both motion modes. |
+| 2 — Chat shell + limits + video | DONE | 2026-05-14 | `c97d79a` (backend), `7f018c8` (frontend) | Tailwind chat surface, `BackgroundVideo` subcomponent (reduced-motion + visibilitychange + `<img>` error fallback), `visible_limit` + `context_limit` wired client-side, RLHF placeholder cards left dormant. Re-encode A/B → keep original (no candidate cleared the size/quality gates). Tester PASS across 9/9 checklist items. |
+| 3 — Routes + supporting pages | DONE | 2026-05-14 | `7ae005a` | `/about`, `/privacy`, `/terms`, `/background` + `LegalPageLayout` ported verbatim (D8). `LegalPageLayout` uses stock Tailwind only — `@tailwindcss/typography` not required. Tester PASS. |
+| 4 — RLHF + feedback reskin | **DESCOPED** | 2026-05-14 | `86d2e3a` | User decision: single-bot deployment. RLHF code paths remain dormant; D3 proposal preserved for future reopening. |
+| 5 — Header → corner cluster | DONE | 2026-05-14 | `b5f9172` | MUI AppBar gone, Tailwind cluster (status dots + cog icon) absolute top-right. Bundle dropped 22.38 kB gzipped. Click-outside dismiss, `accessKey`-gated reset. Tester PASS 14/14. |
+| 6 — Cleanup + verification | DONE | 2026-05-14 | `043ec88` | Removed `/__effect-sandbox` testbed, dead-code audit, README updated for Tailwind + CRACO + asset pulling. Final tester PASS: Chromium + WebKit happy path, zero console errors, route-removal confirmed. Firefox not run (executable absent in harness — low priority since WebKit covers the iOS Safari production target). |
+
+**Plan terminal state.** All planned in-scope work is shipped on `feat/frontend-mock-backend`. Phase 4 (RLHF) descoped per user direction. One known follow-up: blank render on unknown routes — adding a `<Route path="*" element={<NotFound />} />` is a small future polish, not part of this design port. Storybook was never actually set up in the project; D13's "regenerate stories" was based on a wrong assumption and was dropped — left as a possible separate setup task.
