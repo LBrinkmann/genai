@@ -31,6 +31,8 @@ async def get_feedback_config(name: str) -> ConfigResponse:
                 bots=bots,
                 main_preference_feedback=(fc.main_preference_feedback),
                 additional_categories=(fc.additional_categories),
+                visible_limit=fc.visible_limit,
+                context_limit=fc.context_limit,
                 defaults=defaults,
             )
     raise HTTPException(

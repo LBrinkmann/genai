@@ -23,8 +23,19 @@ feedback_configs:
       - "More helpful"
       - "More accurate"
       - "Better tone"
+    # Display cap: how many resolved messages stay visible in the
+    # chat surface. Older resolved messages dissolve via the canvas
+    # effect. Pending RLHF comparisons (awaiting user selection)
+    # are exempt from this cap.
+    visible_limit: 3
+    # Bot context cap: how many of the most recent messages get
+    # included in conversation history sent to the bot. null = no
+    # truncation.
+    context_limit: null
 
   - name: "single-bot-test"
     bots: ["gpt-4"]
     main_preference_feedback: ""
     additional_categories: []
+    visible_limit: 3
+    context_limit: null

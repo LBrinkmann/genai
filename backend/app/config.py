@@ -27,6 +27,8 @@ class FeedbackConfig(BaseModel):
     bots: list[str]
     main_preference_feedback: Optional[str] = ""
     additional_categories: list[str] = []
+    visible_limit: int = 3
+    context_limit: Optional[int] = None
 
 
 class DefaultsConfig(BaseModel):

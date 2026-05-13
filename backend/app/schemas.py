@@ -69,4 +69,6 @@ class ConfigResponse(BaseModel):
     bots: list[BotInfo]
     main_preference_feedback: Optional[str] = ""
     additional_categories: list[str] = []
+    visible_limit: int = 3
+    context_limit: Optional[int] = None
     defaults: DefaultsResponse = DefaultsResponse()
