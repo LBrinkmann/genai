@@ -240,7 +240,6 @@ function ChatPage() {
         className="pointer-events-none absolute inset-0 -z-[9] bg-zinc-950/55"
         aria-hidden
       />
-      {/* Phase 5 will replace this MUI Header with a Tailwind cluster. */}
       <Header
         accessKey={accessKey}
         onReset={handleReset}
