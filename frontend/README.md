@@ -1,5 +1,33 @@
 # GenAI Chat Frontend
 
+## Styling stack
+
+Tailwind CSS v3 powers the chat surface (shell, messages, input, footer, legal
+pages). Material-UI (MUI) v6 is retained for the feedback panel and any future
+admin widgets, restyled via the dark zinc theme.
+
+The build runs through CRACO so we can pass `css-loader { url: false }` —
+required because Tailwind v3's preflight references font URLs that CRA's
+default loader tries (and fails) to resolve. See `craco.config.js`.
+
+## Static media assets
+
+Large binaries (looping background video, etc.) are **not** committed to the
+repo. `frontend/public/.gitignore` excludes `*.mp4` and `*.mov`; the poster
+image (`bg-video-poster.jpg`) and SVG line art are tracked because they're
+small.
+
+Pull the media down from the production server before building locally or
+deploying:
+
+```bash
+.claude/skills/hetzner/hcloud.sh pull-assets gen-ai-server-1
+```
+
+This rsyncs `/var/www/genai/public/*.{mp4,mov,svg}` into
+`frontend/public/`. The dev server and the Docker build both expect the video
+files to be present.
+
 ## Mock Mode (no backend required)
 
 Run the frontend standalone with canned bot responses — no backend, database, or API keys needed.

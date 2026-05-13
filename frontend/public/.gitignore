@@ -1,4 +1,7 @@
 # Static media synced from the server via hcloud.sh pull-assets.
 # Don't commit large binaries to the repo; videos are pulled at deploy time.
+# Note: bg-video-poster.jpg is intentionally tracked (Phase 2) — it's small,
+# acts as the `poster` attribute and the reduced-motion fallback, and must
+# ship with the build.
 *.mp4
 *.mov

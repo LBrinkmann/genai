@@ -4,7 +4,6 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import theme from './theme';
 import ChatPage from './pages/ChatPage';
-import EffectSandbox from './pages/__EffectSandbox';
 import About from './pages/About';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsAndConditions from './pages/TermsAndConditions';
@@ -21,7 +20,6 @@ function App() {
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<TermsAndConditions />} />
           <Route path="/background" element={<Background />} />
-          <Route path="/__effect-sandbox" element={<EffectSandbox />} />
         </Routes>
       </BrowserRouter>
     </ThemeProvider>

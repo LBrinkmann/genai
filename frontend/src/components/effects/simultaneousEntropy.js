@@ -10,7 +10,6 @@ import {
   PHASE_DISSOLVE,
   PHASE_PAUSE,
   PHASE_DONE,
-  measureWrappedTextHeight,
   sampleTextPixelsFine,
   drawWrappedText,
 } from './gravityCascade.js'
