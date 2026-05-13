@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    background-color: #09090b;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100%;
+    background-color: #09090b;
+  }
+
+  #root {
+    min-height: 100vh;
+    min-height: 100dvh;
+    background-color: #09090b;
+  }
+}
+
+@layer utilities {
+  /*
+   Horizontally tiled gradient; one keyframe cycle = one tile width (1000×513 SVG, auto 100% height).
+   */
+  @keyframes gradient-bg-scroll-x {
+    from {
+      background-position: 0 50%;
+    }
+    to {
+      background-position: calc(-100vh * 1000 / 513) 50%;
+    }
+  }
+
+  .bg-gradient-tile-scroll {
+    background-image: url('/background-gradient.svg');
+    background-repeat: repeat-x;
+    background-size: auto 100%;
+    background-position: 0 50%;
+    animation: gradient-bg-scroll-x 20s linear infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bg-gradient-tile-scroll {
+      animation: none;
+    }
+  }
+}
