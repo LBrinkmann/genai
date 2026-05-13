@@ -6,15 +6,21 @@ export default function useChat({
   sessionId = null,
   userId = null,
   loggingEnabled = false,
+  contextLimit = null,
 }) {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
 
+  // Build the conversation history sent to the bot. Independent of
+  // `visible_limit` (D4): truncates to the last `contextLimit` messages
+  // when set. Pending RLHF comparisons (no user selection yet) cannot
+  // enter the bot context — they aren't committed; resolved comparisons
+  // flatten to the user-selected branch.
   const buildHistory = useCallback(
-    (msgs) =>
-      msgs
+    (msgs) => {
+      const flattened = msgs
         .filter((m) => {
           if (m.role === 'user') return true;
           if (m.role === 'assistant') {
@@ -38,8 +44,17 @@ export default function useChat({
             };
           }
           return { role: m.role, content: m.content };
-        }),
-    []
+        });
+      if (
+        typeof contextLimit === 'number' &&
+        contextLimit >= 0 &&
+        flattened.length > contextLimit
+      ) {
+        return flattened.slice(flattened.length - contextLimit);
+      }
+      return flattened;
+    },
+    [contextLimit]
   );
 
   const persistMessage = useCallback(

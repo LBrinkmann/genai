@@ -38,7 +38,7 @@ test('renders message input after config loads', async () => {
   render(<App />);
   await waitFor(() => {
     expect(
-      screen.getByPlaceholderText(/Type a message/i)
+      screen.getByPlaceholderText(/Type your message/i)
     ).toBeInTheDocument();
   });
 });

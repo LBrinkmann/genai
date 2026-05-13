@@ -75,6 +75,17 @@ export default function useConfig() {
   const loggingEnabled =
     logParam !== null ? logParam === 'true' : (defaults.log ?? false);
 
+  // Visible/context caps (D4). Safe defaults preserve existing config
+  // payloads that don't yet declare these fields.
+  const visibleLimit =
+    typeof config?.visible_limit === 'number'
+      ? config.visible_limit
+      : 3;
+  const contextLimit =
+    typeof config?.context_limit === 'number'
+      ? config.context_limit
+      : null;
+
   return {
     config,
     loading,
@@ -82,5 +93,7 @@ export default function useConfig() {
     configName: configNameParam,
     accessKey,
     loggingEnabled,
+    visibleLimit,
+    contextLimit,
   };
 }
