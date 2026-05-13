@@ -197,10 +197,18 @@ mock mode.
   dummy work identically on v6.
 - **Sanity check**: all four routes render with the prototype's styling.
 
-### Phase 4 — RLHF comparison + feedback reskin
+### Phase 4 — RLHF comparison + feedback reskin **[DESCOPED]**
 
-> Gated on D3 input from the dummy's author. Once direction is settled, this phase
-> finalizes the comparison rendering and reskins FeedbackPanel.
+> **Decision (user, 2026-05-14):** RLHF is not part of the GENocideAI design — this
+> deployment is single-bot. The platform's RLHF code paths (`ResponseComparison.js`,
+> `FeedbackPanel.js`, `selectResponse` in `useChat`, the `Array.isArray(content)`
+> branch in `MessageList`, the mock comparison flow) stay in place as dormant defensive
+> code so other deployments can re-enable RLHF with a different visual treatment, but
+> this phase is no longer executed. D3 remains unresolved and is moot for this design.
+>
+> The Phase 2 placeholder cards in `MessageList` won't trigger in single-bot mode and
+> aren't re-styled. If a future deployment re-enables RLHF on this design, the work
+> reopens — the D3 proposal section below still applies.
 
 - Update `MessageList.js` to render comparison messages per the agreed treatment.
 - Restyle `ResponseComparison.js`: drop MUI Card, Tailwind dark cards with
@@ -248,6 +256,188 @@ Block Phase 4 until resolved.
    We're making it configurable per experiment (D4) but want to confirm the default.
 3. **Background page** (`/background`): is this intentional/in-scope as a public route,
    or was it a dev-side test view?
+
+## D3 proposal (RLHF visual treatment)
+
+A concrete proposal for the Phase 4 gate. Choose one option (or remix) and confirm
+the questions at the bottom before the engineer starts the reskin.
+
+### Conceptual framing
+
+GENocideAI is framed as a *collective voice* — many scholars synthesized into one
+output whose words can no longer be traced to individuals. RLHF comparison sits in
+tension with that frame: it momentarily exposes two voices, then asks the user to
+silence one. Whatever treatment we pick, the act of selection is the conceptually
+loaded moment, not the comparison itself. Two principles follow. First, the
+unselected response should not simply *vanish* (cheap, clinical) — it should be
+seen to be silenced, in continuity with the dissolve language already used for
+eviction. Second, the *chosen* response should not be foregrounded with a
+celebratory affordance (checkmarks, glows, color shifts) — selection is sober,
+not triumphant. The visual grammar already in the prototype — gold-on-zinc text
+that disperses into particles — is the right vocabulary; the question is only
+*how the two voices are arranged before one is silenced*.
+
+### Options
+
+**Option A — Stacked, unselected dissolves on choice** (baseline)
+Two responses render vertically, both as canvas messages in the assistant gold
+(`#D4A864`). User taps the kept one; the other receives `evict=true` and dissolves
+into particles in place; the kept one collapses upward as the canonical message
+and the feedback panel appears beneath it.
+
+```
+   [ gold text — voice 1 ............................. ]
+   [ gold text — voice 1 continues ................... ]
+
+   [ gold text — voice 2 ............................. ]
+   [ gold text — voice 2 continues ................... ]
+
+   ─ select 1 ─    ─ select 2 ─
+```
+
+- Cost: **low**. Reuses `SimultaneousEntropyMessage` verbatim; only `MessageList`'s
+  comparison branch is rewritten.
+- Dissolve interaction: native — same particle path as eviction. Selection just
+  flips `evict` on the unchosen branch.
+- Mobile: trivial — vertical stack already works in the prototype's `max-w-2xl`
+  column. No layout change vs current placeholder.
+- Trade-off: visually closest to a conventional A/B picker; the selection
+  affordance (two buttons) is the least native element on the chat surface.
+
+**Option B — Shared canvas, overlaid voices**
+Both responses render into the *same canvas region*, overlaid at ~60% opacity each,
+so the two voices interleave visually as overlapping gold text. The user taps the
+region closer to the response they want (or the response text itself, hit-tested);
+the unchosen voice dissolves out *from under* the chosen one, which then resolves
+to full opacity. No buttons.
+
+```
+   [ gold──voice──1──interleaved──with──voice──2 .... ]   ← both at 60%
+   [ overlapping────particles────faint──gold ........ ]
+   [ tap region of chosen voice ────────────────────  ]
+```
+
+- Cost: **high**. Requires either (a) a new dual-content canvas variant that
+  renders two strings simultaneously and can dissolve one independently, or (b)
+  two stacked absolutely-positioned canvases with hit-testing on the underlying
+  text — both well outside the existing `simultaneousEntropy.js` contract.
+- Dissolve interaction: deepest conceptual fit — the two voices *are* one surface
+  until one is silenced. But the particle engine wasn't designed for layered
+  dissolves; risk of visual mush.
+- Mobile: hit-testing overlapping text on a touchscreen is fragile; if voices
+  are long they overlap heavily and the chosen target is unclear.
+- Trade-off: highest conceptual reward, highest implementation and UX risk.
+  Also the most legible-text-cost: two overlapping paragraphs at 60% opacity
+  may read as illegible to anyone with low vision or on a glare-lit phone.
+
+**Option C — Sequential, one at a time**
+Both responses are never visible simultaneously. The first response appears as a
+normal assistant message and the user reads it; a small unobtrusive affordance
+(e.g. a single dot or `~` underneath, or a swipe gesture on mobile) replaces it
+in place with the *second* response, also as a normal assistant message — same
+gold canvas treatment, same position. The user can toggle back and forth as
+many times as they want. A confirm action (Enter on desktop, tap the next-message
+input, or a small "keep this one" link) commits the currently-shown response;
+the other was never on screen at the moment of commit, so nothing needs to be
+dissolved — it was already absent.
+
+```
+   [ gold text — currently viewing voice 1 ........... ]
+   [ gold text — voice 1 continues ................... ]
+                            · ·   ← tap dot or swipe to toggle
+```
+
+- Cost: **medium**. New toggle state in `MessageList`, no canvas changes, no
+  parallel rendering. `selectResponse` becomes "commit currently-shown".
+- Dissolve interaction: doesn't fight the dissolve engine because nothing
+  dissolves at selection time — the unchosen voice never had a body on screen
+  when it was "silenced". The dissolve aesthetic still applies to eventual
+  eviction of the committed response.
+- Mobile: excellent — swipe gesture is native; single-column layout never
+  doubles vertical real estate.
+- Trade-off: the *comparison* moment is weaker — users can't see both at once
+  to compare directly, which may degrade the quality of preference data the
+  experiment is trying to collect. This is a research-data concern, not an
+  aesthetic one.
+
+### Recommendation
+
+**Option A**, with the caveat below. It is the only option that (a) reuses the
+existing dissolve pipeline without inventing new canvas behavior, (b) keeps both
+voices simultaneously legible — important for collecting genuine preference data,
+which is the *point* of RLHF mode — and (c) keeps the selection moment visually
+loaded by reusing the same particle-silencing language as eviction. The
+conceptual cost vs Option B is real but acceptable: A's stacked layout reads
+as "two voices, one chosen and the other silenced," which is the work's frame.
+Option B is conceptually richer but technically risky and likely illegible;
+Option C trades away the comparison moment that makes RLHF research-useful.
+The caveat: replace the two `Select` buttons with a single inline affordance per
+voice (e.g. a thin underline that becomes a faint gold on hover/tap, no
+button-shaped chrome) so the affordance stops fighting the prose-like aesthetic
+of the rest of the chat surface.
+
+### Implementation notes (recommended option)
+
+Affects:
+
+- `frontend/src/components/MessageList.js` — replace the pending-comparison
+  placeholder branch (the `if (isPending)` block) with the stacked
+  `SimultaneousEntropyMessage` treatment. Both voices use the assistant gold;
+  selection sets `evict=true` on the unchosen branch via local state, *not* via
+  `selectResponse`, so the unchosen text stays mounted long enough to dissolve.
+- `frontend/src/hooks/useChat.js` — `selectResponse` currently mutates the
+  message in place; on resolution, `MessageList` flips from rendering an array
+  of voices to rendering only `content[selected]`. That transition needs to wait
+  for the unchosen voice's dissolve callback before the comparison message is
+  replaced by the canonical single message, otherwise the chosen voice
+  re-mounts and re-runs its intro animation. Either: (a) defer the
+  `selected`-mutation in `useChat` until the unchosen branch fires
+  `onDissolveComplete`, or (b) keep `useChat` as-is and have `MessageList`
+  carry the dissolve-then-flip state internally. Option (b) keeps `useChat`
+  pure and is preferred.
+- `frontend/src/components/ResponseComparison.js` — likely **delete** entirely;
+  its responsibilities collapse into `MessageList`'s comparison branch. Confirm
+  no other caller imports it before removing.
+- `frontend/src/components/FeedbackPanel.js` — restyle only (D2, zinc + gold);
+  no API changes.
+- Reduced-motion: the unchosen voice already inherits the canvas-vs-fade
+  fallback from Phase 1 (D10), so no separate work needed — fade-out of the
+  unchosen branch is the natural reduced-motion analogue of the particle
+  dissolve.
+- Storybook (D13): a `MessageList` story with a pending comparison, and a
+  second variant showing the mid-dissolve state.
+
+Anticipated file touch list extension (delta vs the plan's main list):
+`ResponseComparison.js` (delete), `MessageList.js` (rewrite comparison
+branch), `FeedbackPanel.js` (restyle), `useChat.js` (untouched if option
+(b) above), plus stories.
+
+### Questions to forward to Nora Al-Badri
+
+1. When the user picks one of the two responses, should the *unchosen* response
+   visibly dissolve into particles (the same effect older messages already use),
+   or should it just disappear quietly? We lean toward dissolving — it makes the
+   act of choosing visible — but it could also read as the user "silencing" one
+   voice, which we want to make sure aligns with your intent.
+2. Should the two responses both appear in the same gold color the bot already
+   uses, or should one or both be visually distinguished (e.g. slightly different
+   shade, or a thin label like "Voice A / Voice B")? We currently propose:
+   identical gold, no labels — the two voices are indistinguishable until chosen.
+3. Is it important that the user can see *both* responses on screen at the same
+   time to compare them, or would it be acceptable if the user reads them one at
+   a time (toggling between them) and only ever sees one at a moment? This
+   changes the layout significantly.
+4. For the selection action itself — do you have a preference between an
+   explicit button ("Select") under each response, or a softer affordance like
+   tapping the text of the response you want? Buttons are clearer; tapping the
+   text feels more in keeping with the prose aesthetic but is less discoverable.
+
+### Next actions (Phase 4 gate)
+
+- [ ] Forward questions 1–4 to Nora; capture answers in this section.
+- [ ] If answers diverge from Option A, revise this section before engineer
+      starts; otherwise mark D3 as resolved in the locked-decisions table.
+- [ ] Engineer kicks off Phase 4 against the resolved option.
 
 ## File touch list (anticipated)
 
