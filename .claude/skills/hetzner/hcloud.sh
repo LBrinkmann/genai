@@ -3,10 +3,11 @@
 # Usage: ./hcloud.sh <command> [args...]
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+
 # Load token from .env if not already set
 if [ -z "${HETZNER_API_TOKEN:-}" ]; then
-  SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-  PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
   ENV_FILE="$PROJECT_ROOT/.env"
   if [ -f "$ENV_FILE" ]; then
     HETZNER_API_TOKEN=$(grep -E '^HETZNER_API_TOKEN=' "$ENV_FILE" | cut -d= -f2-)
@@ -18,6 +19,16 @@ if [ -z "${HETZNER_API_TOKEN:-}" ]; then
   echo "Error: HETZNER_API_TOKEN not set. Add it to .env or export it." >&2
   exit 1
 fi
+
+# SSH key for connecting to provisioned servers. Override by exporting SSH_KEY.
+SSH_KEY="${SSH_KEY:-$PROJECT_ROOT/.secrets/gen_ai}"
+SSH_OPTS=(-o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new)
+if [ -f "$SSH_KEY" ]; then
+  SSH_OPTS=(-i "$SSH_KEY" "${SSH_OPTS[@]}")
+fi
+
+ssh_cmd() { ssh "${SSH_OPTS[@]}" "$@"; }
+scp_cmd() { scp "${SSH_OPTS[@]}" "$@"; }
 
 API="https://api.hetzner.cloud/v1"
 AUTH="Authorization: Bearer $HETZNER_API_TOKEN"
@@ -162,7 +173,7 @@ cmd_ssh() {
   local id_ip; id_ip=$(resolve_server "$1")
   local ip; ip=$(echo "$id_ip" | cut -d' ' -f2)
   echo "Connecting to root@$ip..."
-  ssh -o StrictHostKeyChecking=accept-new "root@$ip"
+  ssh_cmd "root@$ip"
 }
 
 cmd_init() {
@@ -172,21 +183,21 @@ cmd_init() {
   echo "Initializing server at $ip..."
 
   echo "  [1/4] Installing Docker..."
-  ssh -o StrictHostKeyChecking=accept-new "root@$ip" \
+  ssh_cmd "root@$ip" \
     "curl -fsSL https://get.docker.com | sh" > /dev/null 2>&1
 
   echo "  [2/4] Cloning repo..."
-  ssh "root@$ip" "cd /opt && git clone https://github.com/LBrinkmann/genai.git" 2>/dev/null || \
-    ssh "root@$ip" "cd /opt/genai && git pull"
+  ssh_cmd "root@$ip" "cd /opt && git clone https://github.com/LBrinkmann/genai.git" 2>/dev/null || \
+    ssh_cmd "root@$ip" "cd /opt/genai && git pull"
 
   echo "  [3/4] Copying .env and config..."
   local project_root; project_root="$(cd "$(dirname "$0")/../../.." && pwd)"
-  scp "$project_root/.env" "root@$ip:/opt/genai/.env"
-  scp "$project_root/config/experiment.yml" "root@$ip:/opt/genai/config/experiment.yml"
+  scp_cmd "$project_root/.env" "root@$ip:/opt/genai/.env"
+  scp_cmd "$project_root/config/experiment.yml" "root@$ip:/opt/genai/config/experiment.yml"
   # Fix API URL to use server IP via Caddy
-  ssh "root@$ip" "sed -i 's|REACT_APP_API_URL=.*|REACT_APP_API_URL=http://$ip|' /opt/genai/.env"
+  ssh_cmd "root@$ip" "sed -i 's|REACT_APP_API_URL=.*|REACT_APP_API_URL=http://$ip|' /opt/genai/.env"
   # Caddyfile for IP-only (no domain yet)
-  ssh "root@$ip" "cat > /opt/genai/Caddyfile << 'EOF'
+  ssh_cmd "root@$ip" "cat > /opt/genai/Caddyfile << 'EOF'
 :80 {
   handle /api/* {
     reverse_proxy backend:8000
@@ -200,10 +211,10 @@ cmd_init() {
 EOF"
 
   echo "  [4/4] Building and starting containers..."
-  ssh "root@$ip" "cd /opt/genai && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build" 2>&1 | tail -5
+  ssh_cmd "root@$ip" "cd /opt/genai && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build" 2>&1 | tail -5
 
   # Set up backup cron
-  ssh "root@$ip" "chmod +x /opt/genai/scripts/*.sh && \
+  ssh_cmd "root@$ip" "chmod +x /opt/genai/scripts/*.sh && \
     (crontab -l 2>/dev/null; echo '0 3 * * * cd /opt/genai && ./scripts/backup.sh >> /var/log/genai-backup.log 2>&1') | crontab -" 2>/dev/null
 
   echo ""
@@ -216,9 +227,9 @@ cmd_sync_config() {
   local ip; ip=$(echo "$id_ip" | cut -d' ' -f2)
   local project_root; project_root="$(cd "$(dirname "$0")/../../.." && pwd)"
   echo "Syncing config to $ip..."
-  scp "$project_root/config/experiment.yml" "root@$ip:/opt/genai/config/experiment.yml"
+  scp_cmd "$project_root/config/experiment.yml" "root@$ip:/opt/genai/config/experiment.yml"
   echo "  Config uploaded. Restarting backend..."
-  ssh "root@$ip" "cd /opt/genai && docker compose -f docker-compose.yml -f docker-compose.prod.yml restart backend" 2>&1
+  ssh_cmd "root@$ip" "cd /opt/genai && docker compose -f docker-compose.yml -f docker-compose.prod.yml restart backend" 2>&1
   echo "Done."
 }
 
@@ -229,11 +240,11 @@ cmd_deploy() {
   local compose="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
   echo "Deploying to $ip..."
   echo "  Pulling latest code..."
-  ssh "root@$ip" "cd /opt/genai && git pull" 2>&1 | tail -5
+  ssh_cmd "root@$ip" "cd /opt/genai && git pull" 2>&1 | tail -5
   echo "  Removing old frontend build..."
-  ssh "root@$ip" "cd /opt/genai && $compose down frontend caddy && docker volume rm -f genai_frontend-static" 2>&1 | tail -5
+  ssh_cmd "root@$ip" "cd /opt/genai && $compose down frontend caddy && docker volume rm -f genai_frontend-static" 2>&1 | tail -5
   echo "  Rebuilding and starting all containers..."
-  ssh "root@$ip" "cd /opt/genai && $compose up -d --build" 2>&1 | tail -10
+  ssh_cmd "root@$ip" "cd /opt/genai && $compose up -d --build" 2>&1 | tail -10
   echo "Deploy complete."
 }
 
@@ -242,16 +253,16 @@ cmd_logs() {
   local ip; ip=$(echo "$id_ip" | cut -d' ' -f2)
   local service="${2:-}"
   if [ -n "$service" ]; then
-    ssh "root@$ip" "cd /opt/genai && docker compose -f docker-compose.yml -f docker-compose.prod.yml logs --tail=50 $service"
+    ssh_cmd "root@$ip" "cd /opt/genai && docker compose -f docker-compose.yml -f docker-compose.prod.yml logs --tail=50 $service"
   else
-    ssh "root@$ip" "cd /opt/genai && docker compose -f docker-compose.yml -f docker-compose.prod.yml logs --tail=50"
+    ssh_cmd "root@$ip" "cd /opt/genai && docker compose -f docker-compose.yml -f docker-compose.prod.yml logs --tail=50"
   fi
 }
 
 cmd_status() {
   local id_ip; id_ip=$(resolve_server "$1")
   local ip; ip=$(echo "$id_ip" | cut -d' ' -f2)
-  ssh "root@$ip" "cd /opt/genai && docker compose -f docker-compose.yml -f docker-compose.prod.yml ps"
+  ssh_cmd "root@$ip" "cd /opt/genai && docker compose -f docker-compose.yml -f docker-compose.prod.yml ps"
 }
 
 cmd_ssh_key_add() {
@@ -277,7 +288,7 @@ cmd_preview_start() {
   echo "  Backend:  http://$ip:$bport"
 
   # Clone or update the preview worktree
-  ssh "root@$ip" "
+  ssh_cmd "root@$ip" "
     set -e
     mkdir -p /opt/genai-previews
     if [ ! -d '$preview_dir' ]; then
@@ -294,7 +305,7 @@ cmd_preview_start() {
   " 2>&1 | tail -5
 
   # Copy .env and generate preview compose
-  ssh "root@$ip" "
+  ssh_cmd "root@$ip" "
     cp /opt/genai/.env '$preview_dir/.env'
     sed -i 's|REACT_APP_API_URL=.*|REACT_APP_API_URL=http://$ip:${bport}|' '$preview_dir/.env'
     sed -i 's|CORS_ORIGIN=.*|CORS_ORIGIN=http://$ip:${fport}|' '$preview_dir/.env'
@@ -335,7 +346,7 @@ YAML
   "
 
   # Start the preview
-  ssh "root@$ip" "
+  ssh_cmd "root@$ip" "
     cd '$preview_dir'
     COMPOSE_PROJECT_NAME='genai-$branch' \
       docker compose \
@@ -357,7 +368,7 @@ cmd_preview_stop() {
   local preview_dir="/opt/genai-previews/$branch"
 
   echo "Stopping remote preview: $branch"
-  ssh "root@$ip" "
+  ssh_cmd "root@$ip" "
     cd '$preview_dir' 2>/dev/null && \
     COMPOSE_PROJECT_NAME='genai-$branch' \
       docker compose \
@@ -373,7 +384,7 @@ cmd_preview_list() {
   local ip; ip=$(echo "$id_ip" | cut -d' ' -f2)
 
   echo "Remote previews on $ip:"
-  ssh "root@$ip" "
+  ssh_cmd "root@$ip" "
     for dir in /opt/genai-previews/*/; do
       [ -d \"\$dir\" ] || continue
       name=\$(basename \"\$dir\")
