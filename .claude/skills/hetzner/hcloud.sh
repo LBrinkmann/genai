@@ -234,18 +234,48 @@ cmd_sync_config() {
 }
 
 cmd_deploy() {
-  # Update existing server: pull code, force-rebuild all, restart
+  # Update existing server: pull code, sync static assets, force-rebuild all, restart
   local id_ip; id_ip=$(resolve_server "$1")
   local ip; ip=$(echo "$id_ip" | cut -d' ' -f2)
   local compose="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
   echo "Deploying to $ip..."
-  echo "  Pulling latest code..."
+  echo "  [1/4] Pulling latest code..."
   ssh_cmd "root@$ip" "cd /opt/genai && git pull" 2>&1 | tail -5
-  echo "  Removing old frontend build..."
+  echo "  [2/4] Syncing static assets..."
+  ssh_cmd "root@$ip" "mkdir -p /opt/genai/frontend/public && \
+    rsync -a \
+      --include='*.mp4' --include='*.mov' --include='*.svg' \
+      --include='*.jpg' --include='*.png' --exclude='*' \
+      /var/www/genai/public/ /opt/genai/frontend/public/" 2>&1 | tail -5
+  echo "  [3/4] Removing old frontend build..."
   ssh_cmd "root@$ip" "cd /opt/genai && $compose down frontend caddy && docker volume rm -f genai_frontend-static" 2>&1 | tail -5
-  echo "  Rebuilding and starting all containers..."
+  echo "  [4/4] Rebuilding and starting all containers..."
   ssh_cmd "root@$ip" "cd /opt/genai && $compose up -d --build" 2>&1 | tail -10
   echo "Deploy complete."
+}
+
+cmd_pull_assets() {
+  # Pull static media assets from the server into the local frontend/public/.
+  # Media-only filter (mp4, mov, svg, jpg, png); everything else excluded.
+  local id_ip; id_ip=$(resolve_server "$1")
+  local ip; ip=$(echo "$id_ip" | cut -d' ' -f2)
+  local dest="$PROJECT_ROOT/frontend/public"
+  mkdir -p "$dest"
+  echo "Pulling static assets from root@$ip:/var/www/genai/public/ into $dest ..."
+  local ssh_e="ssh ${SSH_OPTS[*]}"
+  local stats
+  stats=$(rsync -a --stats \
+    --include='*.mp4' --include='*.mov' --include='*.svg' \
+    --include='*.jpg' --include='*.png' --exclude='*' \
+    -e "$ssh_e" \
+    "root@$ip:/var/www/genai/public/" "$dest/")
+  local files size
+  files=$(echo "$stats" | grep -E '^Number of (regular )?files transferred' | head -1 | awk -F': ' '{print $2}' | tr -d ',')
+  size=$(echo "$stats" | grep -E '^Total transferred file size' | head -1 | awk -F': ' '{print $2}')
+  if [ -z "$files" ]; then
+    files=$(echo "$stats" | grep -E '^Number of files transferred' | head -1 | awk -F': ' '{print $2}' | tr -d ',')
+  fi
+  echo "File count: ${files:-?} | Total size: ${size:-?}"
 }
 
 cmd_logs() {
@@ -423,6 +453,7 @@ case "$CMD" in
   ssh)          cmd_ssh "$1" ;;
   init)         cmd_init "$1" ;;
   deploy)       cmd_deploy "$1" ;;
+  pull-assets)  cmd_pull_assets "$1" ;;
   sync-config)  cmd_sync_config "$1" ;;
   preview-start) cmd_preview_start "$1" "$2" "${3:-3001}" "${4:-8001}" ;;
   preview-stop)  cmd_preview_stop "$1" "$2" ;;
@@ -447,10 +478,14 @@ Server management:
 
 Deployment:
   init <name|id>                Full setup: Docker, clone, .env, build, start
-  deploy <name|id>              Pull code + rebuild containers
+  deploy <name|id>              Pull code + sync static assets + rebuild containers
   sync-config <name|id>         Upload local config + restart backend
   status <name|id>              Show container status
   logs <name|id> [service]      Show container logs
+
+Assets:
+  pull-assets <server>          Rsync /var/www/genai/public/*.{mp4,mov,svg,jpg,png}
+                                from the server into local frontend/public/
 
 Previews (remote):
   preview-start <server> <branch> [fport] [bport]  Deploy branch preview

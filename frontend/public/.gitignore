@@ -1,0 +1,4 @@
+# Static media synced from the server via hcloud.sh pull-assets.
+# Don't commit large binaries to the repo; videos are pulled at deploy time.
+*.mp4
+*.mov

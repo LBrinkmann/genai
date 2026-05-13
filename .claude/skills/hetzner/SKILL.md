@@ -30,10 +30,13 @@ If `$ARGUMENTS` is empty, run with `help` to show available commands.
 
 **Deployment:**
 - `init <name|id>` — full setup: install Docker, clone repo, copy .env + config, build, start
-- `deploy <name|id>` — pull latest code + rebuild containers
+- `deploy <name|id>` — pull latest code, sync static media from `/var/www/genai/public/` to `/opt/genai/frontend/public/`, then rebuild containers
 - `sync-config <name|id>` — upload local config + restart backend
 - `status <name|id>` — show container status on server
 - `logs <name|id> [service]` — show container logs (optionally filter by service: backend, caddy, db)
+
+**Assets:**
+- `pull-assets <server>` — rsync the static media (`*.mp4`, `*.mov`, `*.svg`, `*.jpg`, `*.png`) from the server's `/var/www/genai/public/` into the local `frontend/public/` for development. These files are gitignored — videos are not committed to the repo.
 
 **Branch previews (remote):**
 - `preview-start <server> <branch> [fport] [bport]` — deploy a branch as a preview on custom ports
