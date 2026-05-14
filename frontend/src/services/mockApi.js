@@ -92,10 +92,6 @@ export async function saveMessage(_messageData) {
   return { status: 'ok' };
 }
 
-export async function validateKey(_key) {
-  return { valid: true };
-}
-
 /**
  * Mock health check returning all configured bots as online.
  */
@@ -106,4 +102,117 @@ export async function checkBotHealth(_configName) {
       status: 'online',
     })),
   };
+}
+
+// -------- Admin / auth mocks --------
+
+// Mock session state, scoped to this module. Refreshes on every
+// import in dev mode (CRA HMR may reset it; that's fine for testing).
+let _mockAuthed = false;
+let _mockUser = null;
+
+// Per-bot endpoint state. The state machine cycles:
+//   paused → initializing → running    (on resume)
+//   running → updating    → paused     (on pause)
+// `nextState` is what an in-flight request transitions through; the
+// final resting state is `pendingFinal`. We use a short timer to
+// resolve the transient state so that consecutive polls see motion.
+const _endpoints = {
+  'genocide-ai': {
+    bot_name: 'genocide-ai',
+    provider: 'hf',
+    namespace: 'NoraAl',
+    name: 'genocideai-01-ywg',
+    state: 'paused',
+    message: null,
+    url: 'https://twt8ziu7jvtabi5l.us-east-1.aws.endpoints.huggingface.cloud',
+    model: 'NoraAl/GENocideAI-01',
+    instance: 'nvidia-l40s',
+  },
+};
+
+// Track pending transient transitions so a follow-up poll/click
+// promotes the endpoint to its final state.
+const _transitions = {};
+
+function _settleTransition(botName) {
+  const t = _transitions[botName];
+  if (!t) return;
+  if (Date.now() >= t.settleAt) {
+    _endpoints[botName].state = t.finalState;
+    delete _transitions[botName];
+  }
+}
+
+export async function getMe() {
+  await randomDelay(50, 150);
+  if (_mockAuthed) {
+    return { authenticated: true, user: _mockUser };
+  }
+  return { authenticated: false };
+}
+
+export async function login(username, password) {
+  await randomDelay(150, 250);
+  // Test hook: password "wrong" simulates a 401 so the tester can
+  // smoke-test the error path.
+  if (password === 'wrong') {
+    const err = new Error('Invalid credentials');
+    err.response = {
+      status: 401,
+      data: { detail: 'Invalid credentials' },
+    };
+    throw err;
+  }
+  _mockAuthed = true;
+  _mockUser = username || 'admin';
+  return { ok: true, user: _mockUser };
+}
+
+export async function logout() {
+  await randomDelay(50, 150);
+  _mockAuthed = false;
+  _mockUser = null;
+  return { ok: true };
+}
+
+export async function listLLMEndpoints() {
+  await randomDelay(80, 200);
+  // Promote any transient states whose settle window has passed.
+  for (const name of Object.keys(_endpoints)) {
+    _settleTransition(name);
+  }
+  return Object.values(_endpoints).map((e) => ({ ...e }));
+}
+
+export async function resumeEndpoint(botName) {
+  await randomDelay(120, 220);
+  const ep = _endpoints[botName];
+  if (!ep) {
+    const err = new Error('Unknown bot');
+    err.response = { status: 404, data: { detail: 'Unknown bot' } };
+    throw err;
+  }
+  ep.state = 'initializing';
+  _transitions[botName] = {
+    finalState: 'running',
+    settleAt: Date.now() + 4000,
+  };
+  return { ...ep };
+}
+
+export async function pauseEndpoint(botName) {
+  await randomDelay(120, 220);
+  const ep = _endpoints[botName];
+  if (!ep) {
+    const err = new Error('Unknown bot');
+    err.response = { status: 404, data: { detail: 'Unknown bot' } };
+    throw err;
+  }
+  ep.state = 'updating';
+  _transitions[botName] = {
+    finalState: 'paused',
+    settleAt: Date.now() + 3000,
+  };
+  return { ...ep };
 }

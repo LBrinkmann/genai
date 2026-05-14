@@ -10,6 +10,7 @@ const API_URL =
 
 const realClient = axios.create({
   baseURL: API_URL,
+  withCredentials: true,
 });
 
 /**
@@ -73,11 +74,51 @@ export async function saveMessage(messageData) {
   return response.data;
 }
 
-export async function validateKey(key) {
-  if (USE_MOCK) return mock.validateKey(key);
+export async function getMe() {
+  if (USE_MOCK) return mock.getMe();
+  const response = await client.get('/api/auth/me');
+  return response.data;
+}
+
+export async function login(username, password) {
+  if (USE_MOCK) return mock.login(username, password);
+  const response = await client.post('/api/auth/login', {
+    username,
+    password,
+  });
+  return response.data;
+}
+
+export async function logout() {
+  if (USE_MOCK) return mock.logout();
+  const response = await client.post('/api/auth/logout');
+  return response.data;
+}
+
+export async function listLLMEndpoints() {
+  if (USE_MOCK) return mock.listLLMEndpoints();
+  const response = await client.get(
+    '/api/admin/llm-endpoints'
+  );
+  return response.data;
+}
+
+export async function resumeLLMEndpoint(botName) {
+  if (USE_MOCK) return mock.resumeEndpoint(botName);
   const response = await client.post(
-    '/api/auth/validate-key',
-    { key }
+    `/api/admin/llm-endpoints/${encodeURIComponent(
+      botName
+    )}/resume`
+  );
+  return response.data;
+}
+
+export async function pauseLLMEndpoint(botName) {
+  if (USE_MOCK) return mock.pauseEndpoint(botName);
+  const response = await client.post(
+    `/api/admin/llm-endpoints/${encodeURIComponent(
+      botName
+    )}/pause`
   );
   return response.data;
 }

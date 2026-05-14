@@ -122,7 +122,6 @@ function ChatPage() {
     loading: configLoading,
     error: configError,
     configName,
-    accessKey,
     loggingEnabled,
     visibleLimit,
     contextLimit,
@@ -241,7 +240,6 @@ function ChatPage() {
         aria-hidden
       />
       <Header
-        accessKey={accessKey}
         onReset={handleReset}
         configName={configName}
       />
