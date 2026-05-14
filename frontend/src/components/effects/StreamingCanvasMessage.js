@@ -54,17 +54,24 @@ function StreamingCanvas({ content, textColor, textAlign }) {
       const padded = Math.max(Math.ceil(h + 24), 48)
       setMinH(padded)
 
+      // Use the freshly-measured `padded` height directly. Reading
+      // `container.clientHeight` here returns the OLD DOM height —
+      // the new `setMinH(padded)` hasn't committed yet, so the canvas
+      // would be sized too small for the new content and the wrapped
+      // text would be clipped (visible as a brief "blank" frame on
+      // each streamed chunk). ResizeObserver later re-paints with the
+      // correct height, but the in-between frame is the flicker.
       const dpr = window.devicePixelRatio || 1
-      const containerH = container.clientHeight || padded
+      const drawH = padded
       canvas.width = w * dpr
-      canvas.height = containerH * dpr
+      canvas.height = drawH * dpr
       canvas.style.width = `${w}px`
-      canvas.style.height = `${containerH}px`
+      canvas.style.height = `${drawH}px`
       const ctx = canvas.getContext('2d')
       if (!ctx) return
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-      ctx.clearRect(0, 0, w, containerH)
-      drawWrappedText(ctx, content || ' ', w, containerH, 1, {
+      ctx.clearRect(0, 0, w, drawH)
+      drawWrappedText(ctx, content || ' ', w, drawH, 1, {
         fontSize: FONT_SIZE,
         fontFamily: FONT_FAMILY,
         textColor,
