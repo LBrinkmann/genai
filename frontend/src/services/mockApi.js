@@ -81,6 +81,63 @@ export async function sendChat(botName, messages) {
   return { content: pickResponse(botName, messages) };
 }
 
+/**
+ * Mock streaming chat: yields the picked response one whitespace-
+ * delimited token at a time with a short setTimeout between chunks.
+ * Matches the real `streamChat` interface so swap is transparent.
+ */
+export function streamChat(
+  botName,
+  messages,
+  { onChunk, onDone, onError, signal } = {}
+) {
+  if (signal?.aborted) return;
+  const full = pickResponse(botName, messages);
+  // Preserve whitespace so the rendered text matches `sendChat`.
+  const tokens = full.match(/\S+\s*/g) || [full];
+  let i = 0;
+  let accumulated = '';
+  let timer = null;
+
+  const cleanup = () => {
+    if (timer !== null) {
+      clearTimeout(timer);
+      timer = null;
+    }
+    signal?.removeEventListener('abort', onAbort);
+  };
+
+  const onAbort = () => {
+    cleanup();
+  };
+  signal?.addEventListener('abort', onAbort);
+
+  const tick = () => {
+    if (signal?.aborted) return;
+    if (i >= tokens.length) {
+      cleanup();
+      onDone?.(accumulated);
+      return;
+    }
+    const delta = tokens[i++];
+    accumulated += delta;
+    try {
+      onChunk?.(delta, accumulated);
+    } catch (err) {
+      cleanup();
+      onError?.(err?.message || 'Mock stream error');
+      return;
+    }
+    // 40–90 ms per token gives a believable streaming cadence
+    // without slowing down dev too much.
+    const wait = 40 + Math.floor(Math.random() * 50);
+    timer = setTimeout(tick, wait);
+  };
+
+  // Small initial delay so the optimistic UI has time to mount.
+  timer = setTimeout(tick, 120);
+}
+
 export async function createSession(
   _userId,
   _feedbackConfigName

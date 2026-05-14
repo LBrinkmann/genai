@@ -12,6 +12,7 @@ class ChatRequest(BaseModel):
     bot_name: str
     messages: list[dict]
     timeout: int = 60
+    stream: bool = False
 
 
 class ChatResponse(BaseModel):

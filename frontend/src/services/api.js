@@ -55,6 +55,174 @@ export async function sendChat(botName, messages, timeout = 60) {
   return response.data;
 }
 
+/**
+ * Stream a chat response from the backend via Server-Sent Events.
+ *
+ * The backend forwards OpenAI-style SSE frames (`data: {json}\n\n`)
+ * followed by `data: [DONE]\n\n`. Errors arrive as a single
+ * `event: error\ndata: {"message": "..."}\n\n` frame before the
+ * terminal `[DONE]`.
+ *
+ * Callers pass the same `(botName, messages)` they would pass to
+ * `sendChat`, plus three callbacks and an optional `AbortSignal`:
+ *
+ *   - `onChunk(delta, accumulated)` — fired once per `delta.content`.
+ *   - `onDone(accumulated)` — fired when the upstream sends `[DONE]`
+ *     or the body closes cleanly.
+ *   - `onError(message)` — fired for upstream/network failures and
+ *     for `event: error` frames.
+ *
+ * Aborts: when `signal` is aborted the reader is cancelled and no
+ * further callbacks fire (neither `onDone` nor `onError`).
+ *
+ * Mock mode delegates to `mockApi.streamChat`, which simulates a
+ * word-by-word stream with `setTimeout` and matches this interface.
+ */
+export async function streamChat(
+  botName,
+  messages,
+  { onChunk, onDone, onError, signal } = {}
+) {
+  if (USE_MOCK) {
+    return mock.streamChat(botName, messages, {
+      onChunk,
+      onDone,
+      onError,
+      signal,
+    });
+  }
+
+  let response;
+  try {
+    response = await fetch(`${API_URL}/api/chat`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        bot_name: botName,
+        messages,
+        stream: true,
+      }),
+      signal,
+    });
+  } catch (err) {
+    if (signal?.aborted) return;
+    onError?.(err?.message || 'Network error');
+    return;
+  }
+
+  if (!response.ok) {
+    let detail = `HTTP ${response.status}`;
+    try {
+      const txt = await response.text();
+      if (txt) detail = `${detail}: ${txt.slice(0, 200)}`;
+    } catch {
+      /* ignore */
+    }
+    onError?.(detail);
+    return;
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    onError?.('Response had no body');
+    return;
+  }
+
+  // Streaming decode — emoji and other multi-byte characters can
+  // span chunk boundaries, so we use the stream-aware TextDecoder.
+  const decoder = new TextDecoder('utf-8');
+  let buffer = '';
+  let accumulated = '';
+
+  const handleAbort = () => {
+    reader.cancel().catch(() => {});
+  };
+  signal?.addEventListener('abort', handleAbort);
+
+  try {
+    while (true) {
+      let chunk;
+      try {
+        chunk = await reader.read();
+      } catch (err) {
+        if (signal?.aborted) return;
+        onError?.(err?.message || 'Stream read error');
+        return;
+      }
+      const { value, done } = chunk;
+      if (done) {
+        // Flush any remaining buffered text — usually empty since the
+        // server emits a trailing blank line after `[DONE]`.
+        buffer += decoder.decode();
+        if (buffer.trim() && accumulated === '') {
+          // No DONE seen but body closed: still resolve.
+        }
+        onDone?.(accumulated);
+        return;
+      }
+      buffer += decoder.decode(value, { stream: true });
+
+      // SSE events are separated by a blank line (`\n\n`). Process
+      // every complete event currently in the buffer; keep the
+      // trailing partial.
+      let sepIdx;
+      while ((sepIdx = buffer.indexOf('\n\n')) !== -1) {
+        const raw = buffer.slice(0, sepIdx);
+        buffer = buffer.slice(sepIdx + 2);
+        if (!raw) continue;
+
+        // Each event may have an `event:` line and a `data:` line.
+        let eventName = 'message';
+        const dataLines = [];
+        for (const line of raw.split('\n')) {
+          if (line.startsWith('event:')) {
+            eventName = line.slice(6).trim();
+          } else if (line.startsWith('data:')) {
+            dataLines.push(line.slice(5).trimStart());
+          }
+        }
+        const dataStr = dataLines.join('\n');
+        if (!dataStr) continue;
+
+        if (eventName === 'error') {
+          let msg = dataStr;
+          try {
+            const parsed = JSON.parse(dataStr);
+            if (parsed?.message) msg = parsed.message;
+          } catch {
+            /* leave raw */
+          }
+          onError?.(msg);
+          // Drain to the [DONE] sentinel without firing onDone.
+          return;
+        }
+
+        if (dataStr === '[DONE]') {
+          onDone?.(accumulated);
+          return;
+        }
+
+        try {
+          const parsed = JSON.parse(dataStr);
+          const delta =
+            parsed?.choices?.[0]?.delta?.content || '';
+          if (delta) {
+            accumulated += delta;
+            onChunk?.(delta, accumulated);
+          }
+        } catch {
+          // Ignore malformed events — upstream sometimes emits
+          // keep-alive comments or partial frames the splitter
+          // already filtered. Be lenient.
+        }
+      }
+    }
+  } finally {
+    signal?.removeEventListener('abort', handleAbort);
+  }
+}
+
 export async function createSession(userId, feedbackConfigName) {
   if (USE_MOCK)
     return mock.createSession(userId, feedbackConfigName);

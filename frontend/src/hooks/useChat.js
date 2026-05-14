@@ -1,5 +1,9 @@
 import { useState, useCallback, useRef } from 'react';
-import { sendChat, saveMessage } from '../services/api';
+import {
+  saveMessage,
+  sendChat,
+  streamChat,
+} from '../services/api';
 
 export default function useChat({
   bots = [],
@@ -12,6 +16,23 @@ export default function useChat({
   const [isLoading, setIsLoading] = useState(false);
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
+
+  // Per-message AbortControllers for in-flight streaming responses.
+  // Keyed by the assistant-message `index`; a new send aborts any
+  // controller still active so the second response always wins.
+  const streamControllersRef = useRef(new Map());
+
+  const abortAllStreams = useCallback(() => {
+    const map = streamControllersRef.current;
+    for (const ctrl of map.values()) {
+      try {
+        ctrl.abort();
+      } catch {
+        /* ignore */
+      }
+    }
+    map.clear();
+  }, []);
 
   // Build the conversation history sent to the bot. Independent of
   // `visible_limit` (D4): truncates to the last `contextLimit` messages
@@ -92,6 +113,10 @@ export default function useChat({
       setMessages((prev) => [...prev, userMsg]);
       await persistMessage(userMsg);
 
+      // Cancel any in-flight stream from a previous send. The user's
+      // new message implicitly invalidates any pending response.
+      abortAllStreams();
+
       setIsLoading(true);
       try {
         const nextMessages = [...currentMessages, userMsg];
@@ -129,27 +154,78 @@ export default function useChat({
           await persistMessage(assistantMsg);
         } else {
           const bot = bots[0];
-          try {
-            const result = await sendChat(bot.name, history);
+          const assistantIndex = nextMessages.length;
+          const controller = new AbortController();
+          streamControllersRef.current.set(
+            assistantIndex,
+            controller
+          );
 
-            const assistantMsg = {
-              role: 'assistant',
-              content: result.content || result.message,
-              index: nextMessages.length,
-              bot_ids: [bot.name],
-            };
+          // Insert an empty streaming placeholder up-front so the
+          // canvas renders an empty bubble immediately. Subsequent
+          // chunks update its content; `streaming: false` flips on
+          // done, which triggers MessageList to swap in the full
+          // SimultaneousEntropyMessage.
+          const placeholder = {
+            role: 'assistant',
+            content: '',
+            index: assistantIndex,
+            bot_ids: [bot.name],
+            streaming: true,
+          };
+          setMessages((prev) => [...prev, placeholder]);
 
-            setMessages((prev) => [...prev, assistantMsg]);
-            await persistMessage(assistantMsg);
-          } catch (chatErr) {
-            const errorMsg = {
-              role: 'assistant',
-              content: `[Error: ${chatErr?.response?.data?.detail || chatErr.message || 'Failed to get response'}]`,
-              index: nextMessages.length,
-              bot_ids: [bot.name],
-            };
-            setMessages((prev) => [...prev, errorMsg]);
-          }
+          await new Promise((resolve) => {
+            streamChat(bot.name, history, {
+              signal: controller.signal,
+              onChunk: (_delta, accumulated) => {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.index === assistantIndex
+                      ? { ...m, content: accumulated }
+                      : m
+                  )
+                );
+              },
+              onDone: async (accumulated) => {
+                streamControllersRef.current.delete(
+                  assistantIndex
+                );
+                let finalMsg = null;
+                setMessages((prev) =>
+                  prev.map((m) => {
+                    if (m.index !== assistantIndex) return m;
+                    const next = {
+                      ...m,
+                      content: accumulated || m.content,
+                      streaming: false,
+                    };
+                    finalMsg = next;
+                    return next;
+                  })
+                );
+                if (finalMsg) await persistMessage(finalMsg);
+                resolve();
+              },
+              onError: (message) => {
+                streamControllersRef.current.delete(
+                  assistantIndex
+                );
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.index === assistantIndex
+                      ? {
+                          ...m,
+                          content: `[Error: ${message}]`,
+                          streaming: false,
+                        }
+                      : m
+                  )
+                );
+                resolve();
+              },
+            });
+          });
         }
       } catch (err) {
         console.error('Chat error:', err);
@@ -157,7 +233,7 @@ export default function useChat({
         setIsLoading(false);
       }
     },
-    [bots, buildHistory, persistMessage]
+    [bots, buildHistory, persistMessage, abortAllStreams]
   );
 
   const selectResponse = useCallback(
@@ -197,8 +273,9 @@ export default function useChat({
   );
 
   const clearMessages = useCallback(() => {
+    abortAllStreams();
     setMessages([]);
-  }, []);
+  }, [abortAllStreams]);
 
   return {
     messages,

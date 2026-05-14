@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import FeedbackPanel from './FeedbackPanel';
 import { SimultaneousEntropyMessage } from './effects/SimultaneousEntropyMessage';
+import { StreamingCanvasMessage } from './effects/StreamingCanvasMessage';
 
 /**
  * Tailwind chat surface — renders each message via the canvas dissolve effect.
@@ -163,12 +164,32 @@ function MessageList({
 
           // Plain single response (assistant) or user message.
           const isUser = msg.role === 'user';
+          const color = isUser ? '#e0e0e0' : '#D4A864';
+          const align = isUser ? 'right' : 'left';
+
+          // While the assistant response is still streaming, render a
+          // lightweight canvas that redraws per chunk. The full
+          // particle/dissolve component mounts only after the stream
+          // completes (msg.streaming flips false), so the swap happens
+          // exactly once at the moment the last chunk arrives — while
+          // the bubble is still settling from its final growth.
+          if (msg.streaming) {
+            return (
+              <StreamingCanvasMessage
+                key={msg.index}
+                content={msg.content}
+                textColor={color}
+                textAlign={align}
+              />
+            );
+          }
+
           return (
             <SimultaneousEntropyMessage
               key={msg.index}
               content={msg.content}
-              textColor={isUser ? '#e0e0e0' : '#D4A864'}
-              textAlign={isUser ? 'right' : 'left'}
+              textColor={color}
+              textAlign={align}
               evict={evict}
               onEvicted={() => handleEvicted(msg.index)}
             />
