@@ -1,18 +1,23 @@
 """LLM chat proxy endpoint."""
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import get_config
+from app.database import get_session
 from app.schemas import ChatRequest, ChatResponse
+from app.services.config_overrides import get_merged_config
 
 router = APIRouter(prefix="/api", tags=["chat"])
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest) -> ChatResponse:
+async def chat(
+    request: ChatRequest,
+    session: AsyncSession = Depends(get_session),
+) -> ChatResponse:
     """Proxy a chat request to the configured LLM."""
-    cfg = get_config()
+    cfg = await get_merged_config(session)
 
     bot = None
     for b in cfg.bots:

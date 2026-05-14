@@ -1,17 +1,22 @@
 """Configuration retrieval endpoint."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import get_config
+from app.database import get_session
 from app.schemas import BotInfo, ConfigResponse, DefaultsResponse
+from app.services.config_overrides import get_merged_config
 
 router = APIRouter(prefix="/api", tags=["config"])
 
 
 @router.get("/config/{name}", response_model=ConfigResponse)
-async def get_feedback_config(name: str) -> ConfigResponse:
-    """Return feedback config by name with bot details."""
-    cfg = get_config()
+async def get_feedback_config(
+    name: str,
+    session: AsyncSession = Depends(get_session),
+) -> ConfigResponse:
+    """Return feedback config by name with bot details (overrides applied)."""
+    cfg = await get_merged_config(session)
     for fc in cfg.feedback_configs:
         if fc.name == name:
             bot_map = {b.name: b for b in cfg.bots}

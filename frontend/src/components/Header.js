@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import client, {
   listLLMEndpoints,
   resumeLLMEndpoint,
@@ -254,6 +255,14 @@ function Header({ onReset, configName }) {
                   Logged in as{' '}
                   <span className="text-zinc-300">{user}</span>
                 </div>
+                <Link
+                  to="/admin"
+                  role="menuitem"
+                  onClick={() => setMenuOpen(false)}
+                  className="block w-full rounded px-3 py-1.5 text-left text-zinc-200 hover:bg-zinc-800"
+                >
+                  Admin settings
+                </Link>
                 {endpoints.length > 0 && (
                   <div className="border-t border-zinc-800 px-1 py-1">
                     {endpoints.map((ep) => {

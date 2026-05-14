@@ -6,12 +6,18 @@ typed exceptions into FastAPI ``HTTPException``s.
 """
 
 import asyncio
+from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.audit import audit_event, client_ip
 from app.auth import require_admin_session
 from app.config import BotConfig, get_config
-from app.services import hf_endpoints
+from app.database import get_session
+from app.models import ConfigOverride
+from app.schemas import AdminConfigResponse
+from app.services import config_overrides, hf_endpoints
 from app.services.hf_endpoints import (
     HFAPIError,
     HFAuthError,
@@ -165,11 +171,12 @@ async def list_llm_endpoints() -> dict:
     return {"endpoints": rows}
 
 
-@router.post(
-    "/llm-endpoints/{bot_name}/resume",
-    dependencies=[Depends(require_admin_session)],
-)
-async def resume_llm_endpoint(bot_name: str) -> dict:
+@router.post("/llm-endpoints/{bot_name}/resume")
+async def resume_llm_endpoint(
+    bot_name: str,
+    request: Request,
+    user: str = Depends(require_admin_session),
+) -> dict:
     """Resume the HF endpoint backing ``bot_name``."""
     bot = _find_managed_bot(bot_name)
     endpoint = bot.llm_endpoint
@@ -180,15 +187,30 @@ async def resume_llm_endpoint(bot_name: str) -> dict:
             endpoint.name,
         )
     except HFError as exc:
+        audit_event(
+            "admin.llm.resume",
+            ok=False,
+            user=user,
+            ip=client_ip(request),
+            extra={"bot": bot_name},
+        )
         raise _translate_hf_error(exc) from exc
+    audit_event(
+        "admin.llm.resume",
+        ok=True,
+        user=user,
+        ip=client_ip(request),
+        extra={"bot": bot_name},
+    )
     return _row_from_status(bot, status)
 
 
-@router.post(
-    "/llm-endpoints/{bot_name}/pause",
-    dependencies=[Depends(require_admin_session)],
-)
-async def pause_llm_endpoint(bot_name: str) -> dict:
+@router.post("/llm-endpoints/{bot_name}/pause")
+async def pause_llm_endpoint(
+    bot_name: str,
+    request: Request,
+    user: str = Depends(require_admin_session),
+) -> dict:
     """Pause the HF endpoint backing ``bot_name``."""
     bot = _find_managed_bot(bot_name)
     endpoint = bot.llm_endpoint
@@ -199,5 +221,250 @@ async def pause_llm_endpoint(bot_name: str) -> dict:
             endpoint.name,
         )
     except HFError as exc:
+        audit_event(
+            "admin.llm.pause",
+            ok=False,
+            user=user,
+            ip=client_ip(request),
+            extra={"bot": bot_name},
+        )
         raise _translate_hf_error(exc) from exc
+    audit_event(
+        "admin.llm.pause",
+        ok=True,
+        user=user,
+        ip=client_ip(request),
+        extra={"bot": bot_name},
+    )
     return _row_from_status(bot, status)
+
+
+# ---- Config overrides --------------------------------------------------
+
+
+def _validate_patch(
+    patch: dict,
+    available_feedback_configs: list[str],
+    available_bots: list[str],
+) -> None:
+    """Validate a sparse override patch; raise 400 on bad shape."""
+    allowed = {
+        "visible_limit",
+        "context_limit",
+        "active_feedback_config",
+        "bot_overrides",
+    }
+    extra = set(patch.keys()) - allowed
+    if extra:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown field(s): {sorted(extra)}",
+        )
+
+    if "visible_limit" in patch:
+        v = patch["visible_limit"]
+        if v is not None and (not isinstance(v, int) or v < 1):
+            raise HTTPException(
+                status_code=400,
+                detail="visible_limit must be a positive integer or null",
+            )
+
+    if "context_limit" in patch:
+        v = patch["context_limit"]
+        if v is not None and (not isinstance(v, int) or v < 1):
+            raise HTTPException(
+                status_code=400,
+                detail="context_limit must be a positive integer or null",
+            )
+
+    if "active_feedback_config" in patch:
+        v = patch["active_feedback_config"]
+        if v is not None and (
+            not isinstance(v, str) or v not in available_feedback_configs
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "active_feedback_config must be one of: "
+                    f"{available_feedback_configs}"
+                ),
+            )
+
+    if "bot_overrides" in patch:
+        v = patch["bot_overrides"]
+        if v is None:
+            return
+        if not isinstance(v, dict):
+            raise HTTPException(
+                status_code=400,
+                detail="bot_overrides must be an object",
+            )
+        for bot_name, sub in v.items():
+            if bot_name not in available_bots:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Unknown bot: {bot_name}",
+                )
+            if sub is None:
+                continue
+            if not isinstance(sub, dict):
+                raise HTTPException(
+                    status_code=400,
+                    detail="bot_overrides[*] must be an object",
+                )
+            extra_sub = set(sub.keys()) - {"system_message"}
+            if extra_sub:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "Unknown bot override field(s): "
+                        f"{sorted(extra_sub)}"
+                    ),
+                )
+            sm = sub.get("system_message")
+            if sm is not None and (not isinstance(sm, str) or not sm.strip()):
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "bot_overrides[*].system_message must be "
+                        "a non-empty string or null"
+                    ),
+                )
+
+
+def _apply_patch(existing: dict, patch: dict) -> dict:
+    """Merge ``patch`` into ``existing`` with explicit-null reset.
+
+    ``None`` at a top-level key removes that key from the stored
+    overrides. For ``bot_overrides`` we merge per-bot: a bot value of
+    ``None`` deletes the bot's whole entry; a ``system_message`` of
+    ``None`` deletes just that field.
+    """
+    out = dict(existing)
+    for key, value in patch.items():
+        if key == "bot_overrides":
+            if value is None:
+                out.pop("bot_overrides", None)
+                continue
+            bots = dict(out.get("bot_overrides") or {})
+            for bot_name, sub in value.items():
+                if sub is None:
+                    bots.pop(bot_name, None)
+                    continue
+                merged_bot = dict(bots.get(bot_name) or {})
+                for k, v in sub.items():
+                    if v is None:
+                        merged_bot.pop(k, None)
+                    else:
+                        merged_bot[k] = v
+                if merged_bot:
+                    bots[bot_name] = merged_bot
+                else:
+                    bots.pop(bot_name, None)
+            if bots:
+                out["bot_overrides"] = bots
+            else:
+                out.pop("bot_overrides", None)
+        else:
+            if value is None:
+                out.pop(key, None)
+            else:
+                out[key] = value
+    return out
+
+
+async def _build_admin_response(
+    session: AsyncSession,
+) -> AdminConfigResponse:
+    """Compose the full /api/admin/config response shape."""
+    yaml_cfg = get_config()
+    record = await config_overrides.load_override_record(session)
+    overrides = dict(record.overrides or {}) if record else {}
+    merged = config_overrides.merge_into_config(yaml_cfg, overrides)
+    return AdminConfigResponse(
+        merged=merged.model_dump(),
+        overrides=overrides,
+        available_feedback_configs=[
+            fc.name for fc in yaml_cfg.feedback_configs
+        ],
+        available_bots=[b.name for b in yaml_cfg.bots],
+        updated_by=record.updated_by if record else None,
+        updated_at=record.updated_at if record else None,
+    )
+
+
+@router.get("/config", response_model=AdminConfigResponse)
+async def get_admin_config(
+    user: str = Depends(require_admin_session),
+    session: AsyncSession = Depends(get_session),
+) -> AdminConfigResponse:
+    """Return the merged config and current override metadata."""
+    return await _build_admin_response(session)
+
+
+@router.patch("/config", response_model=AdminConfigResponse)
+async def patch_admin_config(
+    request: Request,
+    patch: dict = Body(default_factory=dict),
+    user: str = Depends(require_admin_session),
+    session: AsyncSession = Depends(get_session),
+) -> AdminConfigResponse:
+    """Merge ``patch`` into the persisted override blob."""
+    yaml_cfg = get_config()
+    available_fcs = [fc.name for fc in yaml_cfg.feedback_configs]
+    available_bots = [b.name for b in yaml_cfg.bots]
+    try:
+        _validate_patch(patch, available_fcs, available_bots)
+    except HTTPException:
+        audit_event(
+            "admin.config.patch",
+            ok=False,
+            user=user,
+            ip=client_ip(request),
+            payload_keys=list(patch.keys()) if isinstance(patch, dict) else [],
+        )
+        raise
+
+    record = await config_overrides.load_override_record(session)
+    if record is None:
+        record = ConfigOverride(id=1, overrides={})
+        session.add(record)
+
+    record.overrides = _apply_patch(record.overrides or {}, patch)
+    record.updated_by = user
+    record.updated_at = datetime.now(timezone.utc)
+    await session.commit()
+    config_overrides.reset_cache()
+
+    audit_event(
+        "admin.config.patch",
+        ok=True,
+        user=user,
+        ip=client_ip(request),
+        payload_keys=list(patch.keys()),
+    )
+    return await _build_admin_response(session)
+
+
+@router.delete("/config", response_model=AdminConfigResponse)
+async def delete_admin_config(
+    request: Request,
+    user: str = Depends(require_admin_session),
+    session: AsyncSession = Depends(get_session),
+) -> AdminConfigResponse:
+    """Wipe all overrides — YAML defaults take over."""
+    record = await config_overrides.load_override_record(session)
+    if record is not None:
+        record.overrides = {}
+        record.updated_by = user
+        record.updated_at = datetime.now(timezone.utc)
+        await session.commit()
+    config_overrides.reset_cache()
+
+    audit_event(
+        "admin.config.delete",
+        ok=True,
+        user=user,
+        ip=client_ip(request),
+    )
+    return await _build_admin_response(session)

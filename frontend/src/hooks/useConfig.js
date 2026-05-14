@@ -14,8 +14,8 @@ export default function useConfig() {
   useEffect(() => {
     let cancelled = false;
 
-    async function loadConfig() {
-      setLoading(true);
+    async function loadConfig(showSpinner = true) {
+      if (showSpinner) setLoading(true);
       setError(null);
       try {
         const data = await fetchConfig(configNameParam);
@@ -31,15 +31,24 @@ export default function useConfig() {
           );
         }
       } finally {
-        if (!cancelled) {
+        if (!cancelled && showSpinner) {
           setLoading(false);
         }
       }
     }
 
-    loadConfig();
+    loadConfig(true);
+
+    // Refetch silently when the tab becomes visible — picks up admin
+    // overrides made in another tab without a full reload.
+    const onVisible = () => {
+      if (!document.hidden) loadConfig(false);
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
     return () => {
       cancelled = true;
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, [configNameParam]);
 

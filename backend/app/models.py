@@ -1,8 +1,9 @@
 """SQLAlchemy 2.x async ORM models for the GenAI platform."""
 
 from datetime import datetime, timezone
+from typing import Optional
 
-from sqlalchemy import DateTime, Integer, String, UniqueConstraint
+from sqlalchemy import DateTime, Integer, String, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -62,4 +63,33 @@ class Session(Base):
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         nullable=False,
+    )
+
+
+class ConfigOverride(Base):
+    """Singleton row of YAML-config overrides applied at runtime.
+
+    A sparse JSON blob layered on top of the immutable YAML baseline.
+    Keys (all optional):
+      - ``visible_limit`` (int)
+      - ``context_limit`` (int | null)
+      - ``active_feedback_config`` (str)
+      - ``bot_overrides`` (mapping of bot name → {"system_message": str})
+    """
+
+    __tablename__ = "config_overrides_v1"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    overrides: Mapped[dict] = mapped_column(
+        JSON, default=dict, server_default="{}", nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_by: Mapped[Optional[str]] = mapped_column(
+        String(64), nullable=True
     )

@@ -1,4 +1,4 @@
-# [ACTIVE] Admin /admin page with DB-persisted config overrides
+# [DONE] Admin /admin page with DB-persisted config overrides
 
 ## Goal
 

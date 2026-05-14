@@ -23,6 +23,7 @@ import bcrypt
 from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel
 
+from app.audit import audit_event, client_ip
 from app.auth import (
     SESSION_COOKIE_NAME,
     SESSION_MAX_AGE,
@@ -217,6 +218,13 @@ async def login(
     ip = _client_ip(request)
     retry_after = _check_rate_limit(ip)
     if retry_after:
+        audit_event(
+            "auth.login.fail",
+            ok=False,
+            user=body.username,
+            ip=ip,
+            extra={"reason": "rate_limited"},
+        )
         raise HTTPException(
             status_code=429,
             detail="Too many attempts",
@@ -224,17 +232,30 @@ async def login(
         )
 
     if not _verify_credentials(body.username, body.password):
+        audit_event(
+            "auth.login.fail",
+            ok=False,
+            user=body.username,
+            ip=ip,
+            extra={"reason": "invalid_credentials"},
+        )
         raise HTTPException(
             status_code=401,
             detail="Invalid credentials",
         )
 
     _set_session_cookie(response, body.username)
+    audit_event(
+        "auth.login.ok",
+        ok=True,
+        user=body.username,
+        ip=ip,
+    )
     return LoginResponse(ok=True, user=body.username)
 
 
 @router.post("/logout", response_model=LogoutResponse)
-async def logout(response: Response) -> LogoutResponse:
+async def logout(request: Request, response: Response) -> LogoutResponse:
     """Clear the admin_session cookie."""
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
@@ -244,6 +265,18 @@ async def logout(response: Response) -> LogoutResponse:
         secure=_cookie_secure(),
         samesite="strict",
         path="/",
+    )
+    # The cookie itself tells us who's signing out, when present.
+    user_hint = None
+    cookie = request.cookies.get(SESSION_COOKIE_NAME)
+    payload = decode_session_cookie(cookie or "")
+    if payload is not None:
+        user_hint = payload.get("user")
+    audit_event(
+        "auth.logout",
+        ok=True,
+        user=user_hint,
+        ip=client_ip(request),
     )
     return LogoutResponse(ok=True)
 

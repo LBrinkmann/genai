@@ -216,3 +216,113 @@ export async function pauseEndpoint(botName) {
   };
   return { ...ep };
 }
+
+// -------- Admin config overrides (mock) --------
+
+let _mockOverrides = {};
+let _mockUpdatedAt = null;
+let _mockUpdatedBy = null;
+
+const _AVAILABLE_FEEDBACK_CONFIGS = ['default', 'comparison'];
+const _AVAILABLE_BOTS = ['bot-alpha'];
+
+function _mockMergedConfig() {
+  // Synthesize a plausible merged-config snapshot.
+  const overrideVisible =
+    typeof _mockOverrides.visible_limit === 'number'
+      ? _mockOverrides.visible_limit
+      : 3;
+  const overrideContextSet = 'context_limit' in _mockOverrides;
+  const overrideContext = overrideContextSet
+    ? _mockOverrides.context_limit
+    : null;
+
+  return {
+    bots: _AVAILABLE_BOTS.map((name) => ({
+      name,
+      display_name: name === 'bot-alpha' ? 'Alpha' : name,
+      model: 'gpt-mock',
+      api_url: 'https://mock.invalid',
+      api_key: '',
+      system_message:
+        _mockOverrides?.bot_overrides?.[name]?.system_message ||
+        `You are ${name}.`,
+    })),
+    feedback_configs: _AVAILABLE_FEEDBACK_CONFIGS.map((name) => ({
+      name,
+      bots: _AVAILABLE_BOTS,
+      main_preference_feedback: '',
+      additional_categories: [],
+      visible_limit: overrideVisible,
+      context_limit: overrideContext,
+    })),
+    defaults: {
+      config:
+        _mockOverrides.active_feedback_config ||
+        _AVAILABLE_FEEDBACK_CONFIGS[0],
+      log: false,
+    },
+  };
+}
+
+function _adminResponse() {
+  return {
+    merged: _mockMergedConfig(),
+    overrides: { ..._mockOverrides },
+    available_feedback_configs: [..._AVAILABLE_FEEDBACK_CONFIGS],
+    available_bots: [..._AVAILABLE_BOTS],
+    updated_by: _mockUpdatedBy,
+    updated_at: _mockUpdatedAt,
+  };
+}
+
+export async function getAdminConfig() {
+  await randomDelay(50, 150);
+  return _adminResponse();
+}
+
+export async function patchAdminConfig(patch) {
+  await randomDelay(80, 180);
+  // Sparse merge with explicit-null reset (mirrors backend).
+  const next = { ..._mockOverrides };
+  Object.entries(patch || {}).forEach(([key, value]) => {
+    if (key === 'bot_overrides') {
+      if (value === null) {
+        delete next.bot_overrides;
+        return;
+      }
+      const merged = { ...(next.bot_overrides || {}) };
+      Object.entries(value || {}).forEach(([bot, sub]) => {
+        if (sub === null) {
+          delete merged[bot];
+          return;
+        }
+        const cur = { ...(merged[bot] || {}) };
+        Object.entries(sub).forEach(([k, v]) => {
+          if (v === null) delete cur[k];
+          else cur[k] = v;
+        });
+        if (Object.keys(cur).length) merged[bot] = cur;
+        else delete merged[bot];
+      });
+      if (Object.keys(merged).length) next.bot_overrides = merged;
+      else delete next.bot_overrides;
+    } else if (value === null) {
+      delete next[key];
+    } else {
+      next[key] = value;
+    }
+  });
+  _mockOverrides = next;
+  _mockUpdatedAt = new Date().toISOString();
+  _mockUpdatedBy = _mockUser || 'admin';
+  return _adminResponse();
+}
+
+export async function deleteAdminConfig() {
+  await randomDelay(50, 150);
+  _mockOverrides = {};
+  _mockUpdatedAt = new Date().toISOString();
+  _mockUpdatedBy = _mockUser || 'admin';
+  return _adminResponse();
+}

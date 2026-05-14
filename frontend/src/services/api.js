@@ -125,4 +125,25 @@ export async function pauseLLMEndpoint(botName) {
   return response.data;
 }
 
+export async function getAdminConfig() {
+  if (USE_MOCK) return mock.getAdminConfig();
+  const response = await client.get('/api/admin/config');
+  return response.data;
+}
+
+export async function patchAdminConfig(patch) {
+  if (USE_MOCK) return mock.patchAdminConfig(patch);
+  const response = await realClient.patch(
+    '/api/admin/config',
+    patch
+  );
+  return response.data;
+}
+
+export async function deleteAdminConfig() {
+  if (USE_MOCK) return mock.deleteAdminConfig();
+  const response = await realClient.delete('/api/admin/config');
+  return response.data;
+}
+
 export default client;
