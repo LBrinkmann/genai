@@ -278,6 +278,23 @@ function Admin() {
   const bots = data?.merged?.bots || [];
   const fcs = data?.available_feedback_configs || [];
 
+  // Derive YAML defaults for the helper text under each input.
+  // The override agent applies visible/context_limit to every feedback_config,
+  // so the YAML default we show is the one on the YAML-default-active config
+  // (`defaults.config`) — the one users see without overrides.
+  const yamlDefaultFcName = data?.yaml_defaults?.defaults?.config;
+  const yamlDefaultFc = (data?.yaml_defaults?.feedback_configs || []).find(
+    (fc) => fc.name === yamlDefaultFcName
+  );
+  const yamlDefaultVisible = yamlDefaultFc?.visible_limit;
+  const yamlDefaultContext =
+    yamlDefaultFc && 'context_limit' in yamlDefaultFc
+      ? yamlDefaultFc.context_limit
+      : undefined;
+  const yamlDefaultBotMessage = (botName) =>
+    (data?.yaml_defaults?.bots || []).find((b) => b.name === botName)
+      ?.system_message || '';
+
   return (
     <div className="min-h-[100dvh] bg-zinc-950 text-zinc-100">
       <header className="border-b border-zinc-800 px-6 py-4">
@@ -337,6 +354,12 @@ function Admin() {
                 </option>
               ))}
             </select>
+            <span className="text-[11px] text-zinc-500">
+              YAML default:{' '}
+              <code className="text-zinc-400">
+                {data?.yaml_defaults?.defaults?.config ?? '—'}
+              </code>
+            </span>
           </label>
           <div className="flex justify-end gap-2">
             <GhostButton onClick={handleResetFc}>
@@ -358,6 +381,12 @@ function Admin() {
                 className="rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-white focus:border-transparent focus:outline-none focus:ring-2 focus:ring-zinc-600"
                 placeholder="(YAML default)"
               />
+              <span className="text-[11px] text-zinc-500">
+                YAML default:{' '}
+                <code className="text-zinc-400">
+                  {yamlDefaultVisible ?? '—'}
+                </code>
+              </span>
             </label>
             <label className="flex flex-col gap-1 text-xs text-zinc-400">
               context_limit (empty = unlimited)
@@ -369,6 +398,14 @@ function Admin() {
                 className="rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-white focus:border-transparent focus:outline-none focus:ring-2 focus:ring-zinc-600"
                 placeholder="(YAML default)"
               />
+              <span className="text-[11px] text-zinc-500">
+                YAML default:{' '}
+                <code className="text-zinc-400">
+                  {yamlDefaultContext === null
+                    ? 'null (unlimited)'
+                    : yamlDefaultContext ?? '—'}
+                </code>
+              </span>
             </label>
           </div>
           <div className="flex justify-end gap-2">
@@ -419,6 +456,14 @@ function Admin() {
                   }
                   className="w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-white focus:border-transparent focus:outline-none focus:ring-2 focus:ring-zinc-600"
                 />
+                <details className="mt-2 text-[11px] text-zinc-500">
+                  <summary className="cursor-pointer hover:text-zinc-300">
+                    YAML default
+                  </summary>
+                  <pre className="mt-1 whitespace-pre-wrap rounded border border-zinc-800/60 bg-zinc-950/60 p-2 text-zinc-400">
+                    {yamlDefaultBotMessage(bot.name) || '(empty)'}
+                  </pre>
+                </details>
                 <div className="mt-2 flex justify-end gap-2">
                   <GhostButton
                     onClick={() => handleResetBot(bot.name)}

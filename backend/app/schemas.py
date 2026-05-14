@@ -105,6 +105,7 @@ class AdminConfigResponse(BaseModel):
 
     merged: dict
     overrides: dict
+    yaml_defaults: dict
     available_feedback_configs: list[str]
     available_bots: list[str]
     updated_by: Optional[str] = None

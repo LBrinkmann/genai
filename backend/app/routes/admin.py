@@ -384,6 +384,7 @@ async def _build_admin_response(
     return AdminConfigResponse(
         merged=merged.model_dump(),
         overrides=overrides,
+        yaml_defaults=yaml_cfg.model_dump(),
         available_feedback_configs=[
             fc.name for fc in yaml_cfg.feedback_configs
         ],
