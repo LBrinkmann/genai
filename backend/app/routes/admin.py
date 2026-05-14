@@ -108,6 +108,8 @@ def _row_from_status(bot: BotConfig, status: dict) -> dict:
         "url": status.get("url"),
         "model": status.get("model"),
         "instance": status.get("instance"),
+        "updated_at": status.get("updated_at"),
+        "estimated_cost_usd": status.get("estimated_cost_usd"),
     }
 
 

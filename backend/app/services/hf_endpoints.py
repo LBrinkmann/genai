@@ -13,6 +13,7 @@ layer is responsible for translating these into FastAPI
 """
 
 import os
+from datetime import datetime, timezone
 from typing import Optional
 
 import httpx
@@ -105,14 +106,71 @@ def _normalize(payload: dict) -> dict:
     if not isinstance(compute, dict):
         compute = {}
 
+    instance_type = compute.get("instanceType")
+    state = _normalize_state(status.get("state"))
+    updated_at = status.get("updatedAt")
+    estimated_cost_usd = _estimate_running_cost(
+        state, updated_at, instance_type
+    )
+
     return {
         "name": payload.get("name") or "",
-        "state": _normalize_state(status.get("state")),
+        "state": state,
         "message": status.get("message"),
         "url": status.get("url"),
         "model": model.get("repository"),
-        "instance": compute.get("instanceType"),
+        "instance": instance_type,
+        "updated_at": updated_at,
+        "estimated_cost_usd": estimated_cost_usd,
     }
+
+
+# Per-instance hourly $ rates (HF Inference Endpoints public pricing,
+# https://huggingface.co/pricing#endpoints — last reviewed 2026-05).
+# Unknown instance types fall through to None so the UI can hide the
+# cost line instead of showing a misleading $0.00.
+_INSTANCE_HOURLY_USD = {
+    "nvidia-l4": 0.80,
+    "nvidia-t4": 0.50,
+    "nvidia-a10g": 1.30,
+    "nvidia-l40s": 1.80,
+    "nvidia-a100": 4.50,
+    "nvidia-h100": 8.30,
+    "intel-icl": 0.07,
+    "intel-spr": 0.12,
+}
+
+
+def _estimate_running_cost(
+    state: str, updated_at: Optional[str], instance_type: Optional[str]
+) -> Optional[float]:
+    """Estimate $ spent since the endpoint last entered ``running``.
+
+    Returns ``None`` when the endpoint isn't running, the timestamp is
+    missing, or we don't have a rate for the instance type. Returns a
+    float USD amount otherwise. This is an *upper-bound estimate* — it
+    treats ``status.updatedAt`` as the resume time, which is correct for
+    a freshly resumed endpoint but inflates the figure if the state
+    has been edited for unrelated reasons. The UI should display it
+    with an "est." prefix to avoid implying authoritative billing.
+    """
+    if state != "running":
+        return None
+    if not updated_at or not instance_type:
+        return None
+    rate = _INSTANCE_HOURLY_USD.get(instance_type)
+    if rate is None:
+        return None
+    try:
+        # HF timestamps are RFC 3339 with Z suffix: "2026-05-14T20:22:14.840Z"
+        # datetime.fromisoformat handles "+00:00" but not "Z" until 3.11+,
+        # so substitute defensively.
+        ts = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
+    except (ValueError, AttributeError):
+        return None
+    now = datetime.now(timezone.utc)
+    elapsed_hours = max(0.0, (now - ts).total_seconds() / 3600.0)
+    return round(elapsed_hours * rate, 2)
 
 
 def _raise_for_status(resp: httpx.Response) -> None:

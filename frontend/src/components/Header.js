@@ -283,6 +283,15 @@ function Header({ onReset, configName }) {
                                 {ep.bot_name}
                               </span>
                               <StateBadge state={ep.state} />
+                              {ep.state === 'running' &&
+                                typeof ep.estimated_cost_usd ===
+                                  'number' && (
+                                  <span className="mt-0.5 text-[10px] text-zinc-500">
+                                    est. $
+                                    {ep.estimated_cost_usd.toFixed(2)}{' '}
+                                    since resume
+                                  </span>
+                                )}
                             </div>
                             {!confirming && (
                               <div className="flex items-center gap-1.5">
@@ -356,6 +365,14 @@ function Header({ onReset, configName }) {
                         </div>
                       );
                     })}
+                    <a
+                      href="https://huggingface.co/settings/billing"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-300"
+                    >
+                      View balance on HF →
+                    </a>
                   </div>
                 )}
                 {onReset && (
