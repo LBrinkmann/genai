@@ -53,6 +53,34 @@ Open [http://localhost:3000](http://localhost:3000). The mock provides:
 
 To switch back to the real backend, remove `.env.local` or set `REACT_APP_MOCK_API=false`.
 
+## Admin login
+
+The chat surface is open to participants; a small admin UI lives behind a
+cookie-session login. Open it from the gear menu in the top-right corner →
+**Log in**. Once authenticated the same menu exposes:
+
+- **Reset conversation** — clears the current session's messages.
+- **LLM endpoint controls** — one row per bot that has an `llm_endpoint`
+  block in `config/experiment.yml`. Each row shows the current state and a
+  Start or Stop button. Stop opens an inline two-step confirmation since
+  pausing disconnects any active users.
+- **Log out** — clears the cookie.
+
+### Dev mode (mock API)
+
+In mock mode (`REACT_APP_MOCK_API=true`) any username works and any password
+**except the literal `wrong`** succeeds — `wrong` is a test hook that
+returns 401 so the error path can be exercised. The mock LLM endpoint state
+cycles automatically (`paused → resuming → running → pausing → paused`) so
+Start/Stop transitions are visible without a real HF endpoint.
+
+### Production mode
+
+The operator generates `ADMIN_PASSWORD_HASH` once via the backend helper
+(`backend/scripts/hash_password.py`) and sets it together with
+`ADMIN_USERNAME` and `SESSION_SECRET` in the server's `.env`. See
+`doc/operator-migration-admin-login.md` for the full runbook.
+
 ## Available Scripts
 
 In the project directory, you can run:

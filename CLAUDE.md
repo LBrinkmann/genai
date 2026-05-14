@@ -67,7 +67,7 @@ Bot and feedback configurations live in YAML files, not in the database. Duplica
 ### Backend
 - Database connection string (async PostgreSQL URL)
 - Config file path (`CONFIG_PATH`) pointing to YAML configuration
-- Access key for frontend feature gating
+- Admin credentials (`ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH`, `SESSION_SECRET`) for the cookie-session admin login that gates reset and LLM endpoint controls. The old `ACCESS_KEY` / `?key=` flow has been replaced.
 
 ### Frontend
 - Backend API base URL

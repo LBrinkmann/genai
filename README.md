@@ -200,6 +200,8 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
 Caddy auto-provisions HTTPS certificates. Point your DNS A records to the server and set `CADDY_DOMAIN` / `CADDY_API_DOMAIN` in `.env`.
 
+First-time admin setup (generating `ADMIN_PASSWORD_HASH` and `SESSION_SECRET`, removing the old `ACCESS_KEY`): see [`doc/operator-migration-admin-login.md`](doc/operator-migration-admin-login.md).
+
 ## Development
 
 ```bash

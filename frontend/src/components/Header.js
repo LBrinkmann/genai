@@ -261,86 +261,89 @@ function Header({ onReset, configName }) {
                       const inFlight = pendingBot === ep.bot_name;
                       const canStart = START_STATES.has(key);
                       const canStop = STOP_STATES.has(key);
-                      if (confirmingPauseFor === ep.bot_name) {
-                        return (
-                          <div
-                            key={ep.bot_name}
-                            className="rounded px-2 py-2"
-                          >
-                            <div className="mb-2 text-xs text-zinc-300">
-                              Disconnect users? Active sessions
-                              will fail until resumed.
-                            </div>
-                            <div className="flex justify-end gap-2">
-                              <button
-                                type="button"
-                                disabled={inFlight}
-                                onClick={() =>
-                                  setConfirmingPauseFor(null)
-                                }
-                                className="rounded-md px-2 py-1 text-xs text-zinc-400 hover:text-white disabled:opacity-50"
-                              >
-                                Cancel
-                              </button>
-                              <button
-                                type="button"
-                                disabled={inFlight}
-                                onClick={() =>
-                                  handleConfirmPause(ep.bot_name)
-                                }
-                                className="rounded-md bg-rose-600 px-2 py-1 text-xs font-medium text-white hover:bg-rose-500 disabled:opacity-50"
-                              >
-                                {inFlight
-                                  ? 'Pausing…'
-                                  : 'Confirm pause'}
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      }
+                      const confirming =
+                        confirmingPauseFor === ep.bot_name;
                       return (
                         <div
                           key={ep.bot_name}
-                          className="flex items-center justify-between gap-2 rounded px-2 py-1.5"
+                          className="rounded px-2 py-1.5"
                         >
-                          <div className="flex min-w-0 flex-col">
-                            <span className="truncate text-xs text-zinc-200">
-                              {ep.bot_name}
-                            </span>
-                            <StateBadge state={ep.state} />
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex min-w-0 flex-col">
+                              <span className="truncate text-xs text-zinc-200">
+                                {ep.bot_name}
+                              </span>
+                              <StateBadge state={ep.state} />
+                            </div>
+                            {!confirming && (
+                              <div className="flex items-center gap-1.5">
+                                {inFlight && (
+                                  <span
+                                    className="h-1.5 w-1.5 animate-pulse rounded-full bg-zinc-400"
+                                    aria-hidden
+                                  />
+                                )}
+                                {canStart && (
+                                  <button
+                                    type="button"
+                                    disabled={inFlight}
+                                    onClick={() =>
+                                      handleResume(ep.bot_name)
+                                    }
+                                    className="rounded-md bg-white px-2 py-1 text-xs font-medium text-black hover:bg-zinc-200 disabled:opacity-50"
+                                  >
+                                    Start
+                                  </button>
+                                )}
+                                {canStop && (
+                                  <button
+                                    type="button"
+                                    disabled={inFlight}
+                                    onClick={() =>
+                                      setConfirmingPauseFor(
+                                        ep.bot_name
+                                      )
+                                    }
+                                    className="rounded-md border border-zinc-700 px-2 py-1 text-xs text-zinc-200 hover:bg-zinc-800 disabled:opacity-50"
+                                  >
+                                    Stop
+                                  </button>
+                                )}
+                              </div>
+                            )}
                           </div>
-                          <div className="flex items-center gap-1.5">
-                            {inFlight && (
-                              <span
-                                className="h-1.5 w-1.5 animate-pulse rounded-full bg-zinc-400"
-                                aria-hidden
-                              />
-                            )}
-                            {canStart && (
-                              <button
-                                type="button"
-                                disabled={inFlight}
-                                onClick={() =>
-                                  handleResume(ep.bot_name)
-                                }
-                                className="rounded-md bg-white px-2 py-1 text-xs font-medium text-black hover:bg-zinc-200 disabled:opacity-50"
-                              >
-                                Start
-                              </button>
-                            )}
-                            {canStop && (
-                              <button
-                                type="button"
-                                disabled={inFlight}
-                                onClick={() =>
-                                  setConfirmingPauseFor(ep.bot_name)
-                                }
-                                className="rounded-md border border-zinc-700 px-2 py-1 text-xs text-zinc-200 hover:bg-zinc-800 disabled:opacity-50"
-                              >
-                                Stop
-                              </button>
-                            )}
-                          </div>
+                          {confirming && (
+                            <div className="mt-2 border-t border-zinc-800 pt-2">
+                              <div className="mb-2 text-xs text-zinc-300">
+                                Disconnect users? Active sessions
+                                will fail until resumed.
+                              </div>
+                              <div className="flex justify-end gap-2">
+                                <button
+                                  type="button"
+                                  disabled={inFlight}
+                                  onClick={() =>
+                                    setConfirmingPauseFor(null)
+                                  }
+                                  className="rounded-md px-2 py-1 text-xs text-zinc-400 hover:text-white disabled:opacity-50"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={inFlight}
+                                  onClick={() =>
+                                    handleConfirmPause(ep.bot_name)
+                                  }
+                                  className="rounded-md bg-rose-600 px-2 py-1 text-xs font-medium text-white hover:bg-rose-500 disabled:opacity-50"
+                                >
+                                  {inFlight
+                                    ? 'Pausing…'
+                                    : 'Confirm pause'}
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
