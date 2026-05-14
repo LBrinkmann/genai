@@ -182,7 +182,15 @@ export function SimultaneousEntropyMessage({
   evict = false,
   onEvicted,
 }) {
-  const [effectReady, setEffectReady] = useState(false)
+  // Start with the canvas already mounted. The legacy `EFFECT_START_DELAY_MS=0`
+  // setTimeout deferred the first mount by a macrotask, leaving the bubble
+  // blank for ~1 frame. SimultaneousEntropyCanvas's own useLayoutEffect
+  // measures the container and re-paints if the initial width is 0, so the
+  // deferral served no purpose — and on the streaming → resolved swap it
+  // produced a visible "text disappears then re-appears" flicker.
+  const [effectReady] = useState(true)
+  // eslint-disable-next-line no-unused-vars
+  const setEffectReady = () => {}
   const [bubbleFading, setBubbleFading] = useState(false)
   /** Collapse runs in parallel with dissolve; parent removes after dissolve completes. */
   const [layout, setLayout] = useState('visible')
@@ -231,11 +239,6 @@ export function SimultaneousEntropyMessage({
       })
     })
   }, [layout])
-
-  useEffect(() => {
-    const t = window.setTimeout(() => setEffectReady(true), EFFECT_START_DELAY_MS)
-    return () => window.clearTimeout(t)
-  }, [])
 
   return (
     <div
