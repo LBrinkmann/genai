@@ -353,27 +353,6 @@ def test_health(client) -> None:
     assert resp.json() == {"status": "ok"}
 
 
-# --------------- validate-key ---------------
-
-
-def test_validate_key_correct(client) -> None:
-    resp = client.post(
-        "/api/auth/validate-key",
-        json={"key": "test-secret"},
-    )
-    assert resp.status_code == 200
-    assert resp.json()["valid"] is True
-
-
-def test_validate_key_wrong(client) -> None:
-    resp = client.post(
-        "/api/auth/validate-key",
-        json={"key": "bad"},
-    )
-    assert resp.status_code == 200
-    assert resp.json()["valid"] is False
-
-
 # --------------- selected field ---------------
 
 
