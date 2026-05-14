@@ -1,4 +1,4 @@
-# [ACTIVE] Admin login + HF Inference Endpoint controls
+# [DONE] Admin login + HF Inference Endpoint controls
 
 ## Goal
 
@@ -194,4 +194,18 @@ None blocking. All design choices are locked.
 
 ## Status updates
 
-(append phase completions here)
+| Phase | Status | Date | Commit(s) | Notes |
+|---|---|---|---|---|
+| A — Backend auth foundation | DONE | 2026-05-14 | `e8d51cc` | bcrypt 4.3 + itsdangerous 2.2. `POST /api/auth/{login,logout}` + `GET /api/auth/me`. Cookie `admin_session`, HttpOnly + SameSite=Strict + Secure(prod), 24h, sliding. 5/60s/IP rate limit. Anti-enumeration via placeholder bcrypt hash + `hmac.compare_digest`. 10/10 new tests pass; full suite 44/44. `scripts/hash_password.py` helper. |
+| B-1 — HF endpoint client + admin routes | DONE | 2026-05-14 | `344b817` | `services/hf_endpoints.py` async client (`get_status`, `resume`, `pause`) with normalized state enum (`running, paused, scaledToZero, initializing, pending, updating, failed, unknown`). `/api/admin/llm-endpoints` GET + per-bot resume/pause behind `require_admin_session`. `llm_endpoint` Pydantic block kept off `ConfigResponse` so namespace/name don't leak to unauth browsers. 8/8 admin tests; suite 52/52. |
+| B-2 — ACCESS_KEY migration | DONE | 2026-05-14 | `65dbaf1` | Audit: only `/api/export/*` (3 routes) used the old guard — all migrated to `require_admin_session`. `require_access_key` deleted. `ACCESS_KEY` removed from `.env.example`, `docker-compose.yml`, root README, `doc/plans/08-infrastructure.md`. New `tests/conftest.py` with reusable `admin_session_env` + `admin_cookie` fixtures. 44/44 tests pass. |
+| C — Frontend auth + admin UI | DONE | 2026-05-14 | `6f0914c` | axios `withCredentials`. `useAdmin` hook (me/login/logout, 429+retryAfter). Tailwind `LoginModal` (focus on open, Escape + backdrop close, submit on Enter). `Header` gear menu now context-aware: "Log in" when unauthenticated; "Logged in as {user}" + per-bot endpoint rows w/ state badge + Start/Stop + inline pause confirm + Reset + Log out when authenticated. 10s auto-poll while menu is open. Mock layer cycles `paused → initializing → running → updating → paused` for demoability. All `accessKey`/`?key=` plumbing removed. Browser tester PASS 12/12 (one cosmetic note → fixed in D). |
+| D — Docs + migration runbook + badge polish | DONE | 2026-05-14 | `c03e234` | CLAUDE.md backend-env bullet updated to reflect admin-credentials flow. `frontend/README.md` admin-login section (~29 lines). New `doc/operator-migration-admin-login.md` runbook (~70 lines) walking through hash generation + SESSION_SECRET + `.env` rotation + docker rebuild. Pause-confirm restructured in `Header.js` so the state badge stays visible while the confirmation prompt shows below (Phase C cosmetic gap closed). Cross-browser tester PASS on WebKit + Chromium; Firefox skipped (executable absent in harness). |
+
+**Plan terminal state.** Login + HF endpoint controls shipped end-to-end. Backend tests 52/52 green; frontend cross-browser PASS on WebKit + Chromium. ACCESS_KEY mechanism fully retired from backend and frontend.
+
+**Operator migration**: see `doc/operator-migration-admin-login.md` for the one-time rotation steps on the live deployment.
+
+**Known follow-ups (not blocking, not part of this plan):**
+- Cookie-semantics verification against the *real* HttpOnly + SameSite=Strict cookie requires hitting the production backend rather than mock mode; do once the live deployment is rotated.
+- Pause confirmation could be a small dialog instead of inline if the menu starts to feel cramped — defer until there are >1 manageable endpoints.
