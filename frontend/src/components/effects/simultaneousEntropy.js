@@ -63,7 +63,7 @@ export function runSimultaneousEntropyEffect(canvas, container, getText, options
   let H = 0
   let particles = []
   let ambientParticles = []
-  let phase = PHASE_FADE_IN
+  let phase = PHASE_HOLD
   let phaseTime = 0
   let animId = 0
   let lastTime = 0
@@ -211,7 +211,7 @@ export function runSimultaneousEntropyEffect(canvas, container, getText, options
   }
 
   function startCycle() {
-    phase = PHASE_FADE_IN
+    phase = PHASE_HOLD
     phaseTime = 0
     evictLatch = false
     lastTime = performance.now()
