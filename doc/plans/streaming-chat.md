@@ -1,4 +1,4 @@
-# [ACTIVE] Streaming chat with motion-masked canvas swap
+# [DONE] Streaming chat with motion-masked canvas swap
 
 ## Goal
 
@@ -87,4 +87,6 @@ frontend/src/components/MessageList.js                       (+ branch on stream
 
 ## Status updates
 
-(append phase completion here)
+| Date | Commit | Notes |
+|---|---|---|
+| 2026-05-14 | `a49c3f2` | Single commit landed (cherry-picked from worktree `worktree-agent-ac89fa253a00dd524` onto `feat/frontend-mock-backend` after the admin-config agent's commits). Conflict in `backend/app/routes/chat.py` resolved by combining the admin agent's `get_merged_config(session)` call with the streaming agent's `_resolve_bot`/`_prepare_payload`/`_stream_upstream` refactor — `_resolve_bot(cfg, bot_name)` now takes the merged config. Backend 59/59 tests pass. Frontend `npm run build` clean. Deployed via `hcloud.sh deploy gen-ai-server-1`. Live verified: streaming endpoint returns `text/event-stream` with `X-Accel-Buffering: no`, terminal `data: [DONE]`, and the upstream-error path truncates to 200 chars without leaking the api_key. `drawWrappedText` reused from `gravityCascade.js` (already exported there — neither option A nor B from the plan was needed). |
