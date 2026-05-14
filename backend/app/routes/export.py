@@ -9,7 +9,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import require_access_key
+from app.auth import require_admin_session
 from app.database import get_session
 from app.models import ChatMessage, Session
 
@@ -73,7 +73,7 @@ async def _stream_messages(
 
 @router.get(
     "/messages",
-    dependencies=[Depends(require_access_key)],
+    dependencies=[Depends(require_admin_session)],
 )
 async def export_all_messages(
     db: AsyncSession = Depends(get_session),
@@ -88,7 +88,7 @@ async def export_all_messages(
 
 @router.get(
     "/messages/{session_id}",
-    dependencies=[Depends(require_access_key)],
+    dependencies=[Depends(require_admin_session)],
 )
 async def export_session_messages(
     session_id: str,
@@ -152,7 +152,7 @@ async def _stream_sessions(
 
 @router.get(
     "/sessions",
-    dependencies=[Depends(require_access_key)],
+    dependencies=[Depends(require_admin_session)],
 )
 async def export_sessions(
     db: AsyncSession = Depends(get_session),

@@ -71,7 +71,6 @@ def _config_and_db(tmp_path: Path, monkeypatch):
     cfg_file = tmp_path / "config.yaml"
     cfg_file.write_text(TEST_CONFIG_YAML)
     monkeypatch.setenv("CONFIG_PATH", str(cfg_file))
-    monkeypatch.setenv("ACCESS_KEY", "test-secret")
 
     from app.config import init_config
 
@@ -242,12 +241,13 @@ def test_save_message_duplicate(client) -> None:
 
 
 # --------------- export tests ---------------
+#
+# Export endpoints are guarded by ``require_admin_session``. Tests use
+# the ``admin_cookies`` fixture from ``conftest.py`` to attach a valid
+# signed session cookie.
 
 
-AUTH_HEADER = {"Authorization": "Bearer test-secret"}
-
-
-def test_export_messages_csv(client) -> None:
+def test_export_messages_csv(client, admin_cookie) -> None:
     now = datetime.now(timezone.utc).isoformat()
     client.post(
         "/api/messages",
@@ -263,7 +263,8 @@ def test_export_messages_csv(client) -> None:
         },
     )
 
-    resp = client.get("/api/export/messages", headers=AUTH_HEADER)
+    client.cookies.set("admin_session", admin_cookie)
+    resp = client.get("/api/export/messages")
     assert resp.status_code == 200
     assert "text/csv" in resp.headers["content-type"]
 
@@ -276,6 +277,7 @@ def test_export_messages_csv(client) -> None:
 
 def test_export_session_messages_csv(
     client,
+    admin_cookie,
 ) -> None:
     now = datetime.now(timezone.utc).isoformat()
     client.post(
@@ -292,17 +294,15 @@ def test_export_session_messages_csv(
         },
     )
 
-    resp = client.get(
-        "/api/export/messages/s-export",
-        headers=AUTH_HEADER,
-    )
+    client.cookies.set("admin_session", admin_cookie)
+    resp = client.get("/api/export/messages/s-export")
     assert resp.status_code == 200
     reader = csv.reader(io.StringIO(resp.text))
     rows = list(reader)
     assert len(rows) >= 2
 
 
-def test_export_sessions_csv(client) -> None:
+def test_export_sessions_csv(client, admin_cookie) -> None:
     client.post(
         "/api/sessions",
         json={
@@ -311,7 +311,8 @@ def test_export_sessions_csv(client) -> None:
         },
     )
 
-    resp = client.get("/api/export/sessions", headers=AUTH_HEADER)
+    client.cookies.set("admin_session", admin_cookie)
+    resp = client.get("/api/export/sessions")
     assert resp.status_code == 200
     reader = csv.reader(io.StringIO(resp.text))
     rows = list(reader)
@@ -326,7 +327,7 @@ def test_export_sessions_csv(client) -> None:
 
 
 def test_export_requires_auth(client) -> None:
-    """Export endpoints return 401 without valid key."""
+    """Export endpoints return 401 without a valid admin cookie."""
     for path in [
         "/api/export/messages",
         "/api/export/messages/s1",
@@ -335,13 +336,14 @@ def test_export_requires_auth(client) -> None:
         resp = client.get(path)
         assert resp.status_code == 401
 
-    bad = {"Authorization": "Bearer wrong"}
+    client.cookies.set("admin_session", "not-a-valid-signed-cookie")
     for path in [
         "/api/export/messages",
         "/api/export/sessions",
     ]:
-        resp = client.get(path, headers=bad)
+        resp = client.get(path)
         assert resp.status_code == 401
+    client.cookies.clear()
 
 
 # --------------- health ---------------
@@ -356,7 +358,7 @@ def test_health(client) -> None:
 # --------------- selected field ---------------
 
 
-def test_save_message_with_selected(client) -> None:
+def test_save_message_with_selected(client, admin_cookie) -> None:
     now = datetime.now(timezone.utc).isoformat()
     resp = client.post(
         "/api/messages",
@@ -377,10 +379,8 @@ def test_save_message_with_selected(client) -> None:
     )
     assert resp.status_code == 201
 
-    export = client.get(
-        "/api/export/messages/s-sel",
-        headers=AUTH_HEADER,
-    )
+    client.cookies.set("admin_session", admin_cookie)
+    export = client.get("/api/export/messages/s-sel")
     reader = csv.reader(io.StringIO(export.text))
     rows = list(reader)
     header = rows[0]

@@ -77,7 +77,9 @@ No container registry needed for a single-server setup — images are built on t
 ### Backend
 - `DATABASE_URL` — async PostgreSQL connection string
 - `CONFIG_PATH` — path to YAML configuration file (mounted volume)
-- `ACCESS_KEY` — frontend feature gating key
+- `ADMIN_USERNAME` / `ADMIN_PASSWORD_HASH` / `SESSION_SECRET` — admin
+  login credentials and cookie-signing secret (replaced the legacy
+  `ACCESS_KEY` in 2026-05; see `backend/scripts/hash_password.py`)
 - LLM API keys referenced via `${VAR}` interpolation in the YAML config
 
 ### Frontend
@@ -88,6 +90,8 @@ No container registry needed for a single-server setup — images are built on t
 ```
 DATABASE_URL=postgresql+asyncpg://genai:secret@db:5432/genai
 CONFIG_PATH=/app/config/experiment.yml
-ACCESS_KEY=some-key
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD_HASH=$2b$12$...
+SESSION_SECRET=<32-byte hex>
 OPENAI_API_KEY=sk-...
 ```

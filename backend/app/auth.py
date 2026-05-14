@@ -1,24 +1,21 @@
 """Shared authentication utilities.
 
-Two guards live here:
+``require_admin_session`` is the only admin guard. It reads the signed
+``admin_session`` cookie set by ``POST /api/auth/login`` (see
+``backend/app/routes/auth.py``) and raises ``401`` if the cookie is
+missing, tampered, or expired.
 
-* ``require_admin_session`` — the new session-cookie based guard. New
-  admin routes should depend on this. Reads the signed ``admin_session``
-  cookie set by ``POST /api/auth/login`` (see
-  ``backend/app/routes/auth.py``) and raises ``401`` if the cookie is
-  missing, tampered, or expired.
-
-* ``require_access_key`` — DEPRECATED, kept as a temporary alias so the
-  pre-existing CSV export routes that still use it keep working in this
-  PR. Phase B of the admin-login plan migrates those routes to
-  ``require_admin_session``. Do not add new uses.
+The legacy ``require_access_key`` Bearer-token guard was removed in
+Phase B of the admin-login plan (2026-05). Operators migrate from
+``ACCESS_KEY`` to ``ADMIN_USERNAME`` / ``ADMIN_PASSWORD_HASH`` /
+``SESSION_SECRET``; see ``backend/scripts/hash_password.py``.
 """
 
 import json
 import os
 import time
 
-from fastapi import Header, HTTPException, Request
+from fastapi import HTTPException, Request
 from itsdangerous import BadSignature, SignatureExpired, TimestampSigner
 
 # Cookie + session constants. Kept here so the routes module can
@@ -97,15 +94,3 @@ def require_admin_session(request: Request) -> str:
     # Stash on request.state for downstream handlers that want it.
     request.state.user = user
     return user
-
-
-# DEPRECATED: replaced by require_admin_session in Phase B.
-# Kept so pre-existing routes (e.g. /api/export/*) continue to work
-# until Phase B migrates them. Do not add new uses.
-async def require_access_key(
-    authorization: str = Header(None),
-) -> None:
-    """Validate Bearer token against ACCESS_KEY env var."""
-    access_key = os.environ.get("ACCESS_KEY", "")
-    if not authorization or authorization != f"Bearer {access_key}":
-        raise HTTPException(status_code=401, detail="Unauthorized")

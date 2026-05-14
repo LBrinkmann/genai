@@ -30,7 +30,9 @@ Everything is configured through two files: `.env` for secrets/infrastructure, a
 |----------|-------------|---------|
 | `DATABASE_URL` | PostgreSQL connection string | `postgresql+asyncpg://genai:genai@db:5432/genai` |
 | `CONFIG_PATH` | Path to YAML config inside the container | `/app/config/experiment.yml` |
-| `ACCESS_KEY` | Key that unlocks admin controls in the chat UI | `my-secret-key` |
+| `ADMIN_USERNAME` | Admin login username | `admin` |
+| `ADMIN_PASSWORD_HASH` | Bcrypt hash of the admin password (generate with `backend/scripts/hash_password.py`) | `$2b$12$...` |
+| `SESSION_SECRET` | Secret used to sign the admin session cookie (generate with `python -c "import secrets; print(secrets.token_hex(32))"`) | `<random hex>` |
 | `OPENAI_API_KEY` | LLM API key (referenced in YAML config via `${OPENAI_API_KEY}`) | `sk-...` |
 | `REACT_APP_API_URL` | Backend URL for the frontend (dev only) | `http://localhost:8000` |
 | `CADDY_DOMAIN` | Chat frontend domain (production only) | `chat.example.com` |
@@ -159,26 +161,28 @@ Optional URL parameters:
 |-----------|--------|
 | `config=<name>` | Which feedback config to load (defaults to `defaults.config` in YAML, or `default`) |
 | `log=true` | Enable message persistence (defaults to `defaults.log` in YAML, or `false`) |
-| `key=<access-key>` | Unlock admin controls (reset button) if it matches `ACCESS_KEY` |
 
-Example with all parameters:
+Example with parameters:
 ```
-https://chat.example.com/?config=gpt4-vs-claude&log=true&key=my-secret-key
+https://chat.example.com/?config=gpt4-vs-claude&log=true
 ```
 
 ## Data Export
 
-The backend provides CSV export endpoints:
+The backend provides CSV export endpoints. They are gated by the admin
+session cookie, so log in first and reuse the cookie jar:
 
 ```bash
-# All messages across all sessions
-curl http://localhost:8000/api/export/messages -o messages.csv
+# 1. Log in (saves the session cookie to cookies.txt)
+curl -c cookies.txt -X POST http://localhost:8000/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"<your-password>"}'
 
-# Messages for a specific session
-curl http://localhost:8000/api/export/messages/SESSION_UUID -o session.csv
-
-# Session summary (with message counts)
-curl http://localhost:8000/api/export/sessions -o sessions.csv
+# 2. Use the cookie for exports
+curl -b cookies.txt http://localhost:8000/api/export/messages -o messages.csv
+curl -b cookies.txt http://localhost:8000/api/export/messages/SESSION_UUID \
+  -o session.csv
+curl -b cookies.txt http://localhost:8000/api/export/sessions -o sessions.csv
 ```
 
 ## Production Deployment

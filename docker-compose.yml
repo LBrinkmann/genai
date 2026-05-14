@@ -8,7 +8,11 @@ services:
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - CONFIG_PATH=${CONFIG_PATH}
-      - ACCESS_KEY=${ACCESS_KEY}
+      - ADMIN_USERNAME=${ADMIN_USERNAME}
+      - ADMIN_PASSWORD_HASH=${ADMIN_PASSWORD_HASH}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - COOKIE_SECURE=${COOKIE_SECURE:-true}
+      - TRUST_PROXY=${TRUST_PROXY:-false}
     networks:
       - genai-net
 
