@@ -109,9 +109,11 @@ function BackgroundVideo({ reducedMotion }) {
       aria-hidden
     >
       {/* MP4 (H.264/AAC) plays reliably across browsers; MOV is
-          inconsistent outside Safari. */}
-      <source src="/bg-video-slow.mp4" type="video/mp4" />
-      <source src="/bg-video-slow.mov" type="video/quicktime" />
+          inconsistent outside Safari. Cache buster `?v=2` forces a
+          re-fetch after the 2026-05-14 re-encode from yuvj420p (Chrome
+          incompatible) to yuv420p. */}
+      <source src="/bg-video-slow.mp4?v=2" type="video/mp4" />
+      <source src="/bg-video-slow.mov?v=2" type="video/quicktime" />
     </video>
   );
 }
