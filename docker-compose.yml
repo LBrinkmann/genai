@@ -13,6 +13,8 @@ services:
       - SESSION_SECRET=${SESSION_SECRET}
       - COOKIE_SECURE=${COOKIE_SECURE:-true}
       - TRUST_PROXY=${TRUST_PROXY:-false}
+      - HF_API_TOKEN=${HF_API_TOKEN}
+      - HF_INFERENCE_TOKEN=${HF_INFERENCE_TOKEN}
     networks:
       - genai-net
 

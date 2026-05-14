@@ -21,6 +21,7 @@
   },
   "scripts": {
     "start": "craco start",
+    "start:mock": "REACT_APP_MOCK_API=true craco start",
     "build": "craco build",
     "test": "craco test",
     "eject": "react-scripts eject"
