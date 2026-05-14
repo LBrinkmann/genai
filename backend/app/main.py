@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import init_config
 from app.database import create_tables
+from app.routes.admin import router as admin_router
 from app.routes.auth import router as auth_router
 from app.routes.chat import router as chat_router
 from app.routes.config import router as config_router
@@ -41,6 +42,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(admin_router)
 app.include_router(config_router)
 app.include_router(chat_router)
 app.include_router(sessions_router)

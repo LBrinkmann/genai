@@ -9,6 +9,13 @@ bots:
     api_url: "https://twt8ziu7jvtabi5l.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions"
     api_key: "${HF_INFERENCE_TOKEN}"
     system_message: ""
+    # Managed HuggingFace Inference Endpoint. When present, the admin
+    # UI exposes Start/Stop controls for this endpoint. Drop the block
+    # for bots that don't back onto an HF managed endpoint.
+    llm_endpoint:
+      provider: "hf"
+      namespace: "NoraAl"
+      name: "genocideai-01-ywg"
 
   - name: "genocideai-b"
     display_name: "GENocideAI"

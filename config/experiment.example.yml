@@ -15,6 +15,20 @@ bots:
     api_key: "${OPENAI_API_KEY}"
     system_message: "You are a helpful assistant. Keep your answers brief and to the point."
 
+  # Example of a bot backed by a managed HuggingFace Inference
+  # Endpoint. The optional ``llm_endpoint`` block tells the admin UI
+  # that this bot can be started/stopped on demand. Omit the block for
+  # bots that don't need a control surface.
+  - name: "hf-managed-example"
+    model: "NoraAl/GENocideAI-01"
+    api_url: "https://twt8ziu7jvtabi5l.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions"
+    api_key: "${HF_INFERENCE_TOKEN}"
+    system_message: ""
+    llm_endpoint:
+      provider: "hf"
+      namespace: "NoraAl"
+      name: "genocideai-01-ywg"
+
 feedback_configs:
   - name: "comparison-test"
     bots: ["gpt-4", "gpt-4-concise"]

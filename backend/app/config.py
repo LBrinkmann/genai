@@ -3,10 +3,22 @@
 import os
 import re
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 import yaml
 from pydantic import BaseModel, model_validator
+
+
+class LLMEndpointConfig(BaseModel):
+    """Optional per-bot block describing a managed inference endpoint.
+
+    Bots that include this block surface a Start/Stop control in the
+    admin UI; bots without it are unmanaged.
+    """
+
+    provider: Literal["hf"]
+    namespace: str
+    name: str
 
 
 class BotConfig(BaseModel):
@@ -18,6 +30,9 @@ class BotConfig(BaseModel):
     api_key: Optional[str] = ""
     system_message: Optional[str] = ""
     display_name: Optional[str] = ""
+    # Optional managed-endpoint block. Internal: not exposed via the
+    # public /api/config response. Admin routes consult this directly.
+    llm_endpoint: Optional[LLMEndpointConfig] = None
 
 
 class FeedbackConfig(BaseModel):
