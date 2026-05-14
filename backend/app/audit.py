@@ -10,11 +10,21 @@ secrets into stdout.
 import json
 import logging
 import os
+import sys
 from typing import Iterable, Optional
 
 from fastapi import Request
 
 logger = logging.getLogger("genai.audit")
+# Force INFO + stdout handler so events show up under gunicorn/uvicorn
+# without depending on the host logging config. Only attach once.
+if not logger.handlers:
+    _handler = logging.StreamHandler(stream=sys.stdout)
+    _handler.setFormatter(logging.Formatter("%(message)s"))
+    logger.addHandler(_handler)
+    logger.setLevel(logging.INFO)
+    # Keep logs out of the root logger to avoid double-emission.
+    logger.propagate = False
 
 
 def client_ip(request: Request) -> str:
