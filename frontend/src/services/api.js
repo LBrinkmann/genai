@@ -100,7 +100,9 @@ export async function listLLMEndpoints() {
   const response = await client.get(
     '/api/admin/llm-endpoints'
   );
-  return response.data;
+  // Backend wraps the list as {endpoints: [...]}; the mock returns
+  // a bare array. Normalize so callers always get the array.
+  return response.data?.endpoints || [];
 }
 
 export async function resumeLLMEndpoint(botName) {
