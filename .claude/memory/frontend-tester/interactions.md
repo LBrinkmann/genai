@@ -40,6 +40,15 @@ How to reliably interact with specific components. Updated 2026-03-14 (Round 2).
 - This exposes ports 3000 (frontend), 8000 (backend), 5432 (db)
 - Base docker-compose.yml does NOT expose ports -- dev override is required
 
+## Mock-API Dev Mode (no backend)
+- `cd frontend && REACT_APP_USE_MOCK_API=true BROWSER=none PORT=3000 npm start`
+- Mock layer at `frontend/src/services/mockApi.js` — backend-free frontend dev
+- Status indicator shows green dot when mock API is healthy
+- Default config = single bot; can also use config=comparison for RLHF mode
+- Compile time: ~30-60s for first build, then HMR
+- Look for "webpack compiled" in dev log to know ready
+- The status dot is currently green when mocked
+
 ## General
 - After navigation, wait 3 seconds for config fetch + render
 - After sending message, wait 10-12 seconds for LLM response

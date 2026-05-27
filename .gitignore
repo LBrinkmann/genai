@@ -8,6 +8,12 @@ __pycache__/
 build/
 dist/
 *.egg-info/
+frontend/storybook-static/
+
+# Large media (keep out of git; use external storage / LFS)
+*.mp4
+*.mov
+*.webm
 
 # Environment
 .env
@@ -47,3 +53,6 @@ coverage/
 .coverage
 htmlcov/
 .pytest_cache/
+
+# Frontend test scratch (throwaway scripts & deps)
+doc/frontend-tests/scratch/

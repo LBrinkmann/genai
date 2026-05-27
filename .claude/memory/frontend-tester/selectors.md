@@ -2,11 +2,15 @@
 
 Reliable CSS selectors for key UI elements. Updated 2026-03-14 (Round 2).
 
-## Header
-- App bar: header.MuiAppBar-root or .MuiAppBar-root
-- Title: Typography h6 inside Toolbar -- text "GenAI Chat"
-- Status indicator: [data-testid="status-indicator"] -- 10x10px circle
-- Gear icon: find("settings gear icon button") -> ref_5 (unnamed button in banner area)
+## Header (Phase 5+: Tailwind corner cluster, no MUI AppBar)
+- NO more `header.MuiAppBar-root` on `/`. Header is now a `<div>` cluster.
+- Cluster root: `div.absolute.right-4.top-4.z-20` containing dots + gear
+- Status indicator: `[data-testid="status-indicator"]` (10px round Tailwind span)
+- Gear icon button: `button[aria-label="Settings"]`
+- Open menu: `[role="menu"]`
+- Reset (key branch): `button:has-text("Reset conversation")` inside the menu
+- No-key fallback text: "No admin controls" inside `div[role="menuitem"][aria-disabled="true"]`
+- Title: `Chat | GENocideAI` (no "GenAI Chat" anywhere on page)
 
 ## Message Area
 - Message list container: Box with flex column, overflowY auto
@@ -15,11 +19,10 @@ Reliable CSS selectors for key UI elements. Updated 2026-03-14 (Round 2).
 - All Paper cards (RLHF): .MuiPaper-root -- index 0 is header, 1 and 2 are comparison cards
 
 ## Input
-- Text field: find("message input field") -> ref_6 (textarea with placeholder "Type a message...")
-- ref_7 is a secondary unnamed textbox -- prefer ref_6
-- Send button: IconButton at right end of input area (~coordinate [1470, 781])
-- Send button disabled: grey/faded appearance
-- Send button active: blue background rgb(25, 118, 210)
+- Phase 5+: Tailwind `<input placeholder="Type your message...">` (NOT a textarea).
+  - Playwright: `input[placeholder="Type your message..."]`
+  - Submit by pressing Enter on the input
+- Older MUI textarea selectors no longer apply.
 
 ## RLHF Comparison
 - Bot name labels: Typography caption (e.g., "gpt-4", "gpt-4-concise")
