@@ -10,8 +10,11 @@ bots:
     api_key: "${HF_INFERENCE_TOKEN}"
     system_message: ""
     # Managed HuggingFace Inference Endpoint. When present, the admin
-    # UI exposes Start/Stop controls for this endpoint. Drop the block
-    # for bots that don't back onto an HF managed endpoint.
+    # UI exposes Start/Stop + Auto/On/Off controls, and the public chat
+    # offers a "Wake the AI" button while it's asleep. Enable
+    # scale-to-zero on the HF endpoint itself — that native idle-shutoff
+    # bounds cost; the app runs no shutoff timer. Drop the block for
+    # bots that don't back onto an HF managed endpoint.
     llm_endpoint:
       provider: "hf"
       namespace: "NoraAl"

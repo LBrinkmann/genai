@@ -4,6 +4,7 @@ import client, {
   listLLMEndpoints,
   resumeLLMEndpoint,
   pauseLLMEndpoint,
+  setEndpointMode,
 } from '../services/api';
 import useAdmin from '../hooks/useAdmin';
 import LoginModal from './LoginModal';
@@ -25,6 +26,13 @@ const STATE_STYLES = {
   failed: 'bg-rose-500/20 text-rose-300',
   unknown: 'bg-zinc-700/40 text-zinc-300',
 };
+
+// Global endpoint mode options shown in the admin switch.
+const MODE_OPTIONS = [
+  { value: 'auto', label: 'Auto' },
+  { value: 'on', label: 'Always on' },
+  { value: 'off', label: 'Off' },
+];
 
 const START_STATES = new Set([
   'paused',
@@ -69,6 +77,8 @@ function Header({ onReset, configName }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   const [endpoints, setEndpoints] = useState([]);
+  const [mode, setMode] = useState('auto');
+  const [modePending, setModePending] = useState(false);
   const [pendingBot, setPendingBot] = useState(null);
   const [confirmingPauseFor, setConfirmingPauseFor] =
     useState(null);
@@ -113,7 +123,8 @@ function Header({ onReset, configName }) {
   const refreshEndpoints = useCallback(async () => {
     try {
       const data = await listLLMEndpoints();
-      setEndpoints(Array.isArray(data) ? data : []);
+      setEndpoints(data?.endpoints || []);
+      setMode(data?.mode || 'auto');
     } catch {
       setEndpoints([]);
     }
@@ -141,6 +152,20 @@ function Header({ onReset, configName }) {
     setMenuOpen(false);
     setConfirmingPauseFor(null);
     if (onReset) onReset();
+  };
+
+  const handleSetMode = async (next) => {
+    if (next === mode || modePending) return;
+    setModePending(true);
+    try {
+      const data = await setEndpointMode(next);
+      setMode(data?.mode || next);
+      if (Array.isArray(data?.endpoints)) setEndpoints(data.endpoints);
+    } catch {
+      // Leave as-is; the next poll reconciles.
+    } finally {
+      setModePending(false);
+    }
   };
 
   const handleResume = async (botName) => {
@@ -265,6 +290,36 @@ function Header({ onReset, configName }) {
                 </Link>
                 {endpoints.length > 0 && (
                   <div className="border-t border-zinc-800 px-1 py-1">
+                    <div className="px-2 py-1.5">
+                      <div className="mb-1 text-[10px] uppercase tracking-wide text-zinc-500">
+                        Endpoint mode
+                      </div>
+                      <div className="flex gap-1 rounded-lg bg-zinc-800/60 p-0.5">
+                        {MODE_OPTIONS.map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            disabled={modePending}
+                            onClick={() => handleSetMode(opt.value)}
+                            className={`flex-1 rounded-md px-2 py-1 text-xs font-medium transition disabled:opacity-50 ${
+                              mode === opt.value
+                                ? 'bg-white text-black'
+                                : 'text-zinc-300 hover:bg-zinc-700/60'
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="mt-1 text-[10px] text-zinc-500">
+                        {mode === 'auto' &&
+                          'Visitors can wake the AI; it sleeps when idle.'}
+                        {mode === 'on' &&
+                          'Chat always on (still sleeps when idle, wakes on use).'}
+                        {mode === 'off' &&
+                          'Endpoints paused; visitors cannot wake them.'}
+                      </div>
+                    </div>
                     {endpoints.map((ep) => {
                       const key = normState(ep.state);
                       const inFlight = pendingBot === ep.bot_name;

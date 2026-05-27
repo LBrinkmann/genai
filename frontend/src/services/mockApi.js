@@ -233,13 +233,98 @@ export async function logout() {
   return { ok: true };
 }
 
+// Global endpoint mode (auto|on|off), mirroring the backend.
+let _mockMode = 'auto';
+
+function _normState(s) {
+  return String(s || 'unknown')
+    .toLowerCase()
+    .replace(/[-_]/g, '');
+}
+
+// Collapse mock endpoint states into the chat-gate verdict, matching
+// backend endpoint_control.aggregate_state.
+function _aggregateMock() {
+  for (const name of Object.keys(_endpoints)) {
+    _settleTransition(name);
+  }
+  if (_mockMode === 'off') {
+    return { ready: false, state: 'disabled', mode: 'off' };
+  }
+  const states = Object.values(_endpoints).map((e) => _normState(e.state));
+  if (_mockMode === 'on' || states.length === 0) {
+    return { ready: true, state: 'ready', mode: _mockMode };
+  }
+  const asleep = new Set(['scaledtozero', 'paused', 'failed']);
+  const waking = new Set(['initializing', 'pending', 'updating']);
+  let verdict;
+  if (states.every((s) => s === 'running')) {
+    verdict = { ready: true, state: 'ready' };
+  } else if (states.some((s) => asleep.has(s))) {
+    verdict = { ready: false, state: 'asleep' };
+  } else if (states.some((s) => waking.has(s))) {
+    verdict = { ready: false, state: 'waking' };
+  } else {
+    verdict = { ready: false, state: 'unavailable' };
+  }
+  return { ...verdict, mode: _mockMode };
+}
+
 export async function listLLMEndpoints() {
   await randomDelay(80, 200);
   // Promote any transient states whose settle window has passed.
   for (const name of Object.keys(_endpoints)) {
     _settleTransition(name);
   }
-  return Object.values(_endpoints).map((e) => ({ ...e }));
+  return {
+    endpoints: Object.values(_endpoints).map((e) => ({ ...e })),
+    mode: _mockMode,
+  };
+}
+
+export async function getEndpointState() {
+  await randomDelay(50, 150);
+  return _aggregateMock();
+}
+
+export async function activateEndpoints() {
+  await randomDelay(120, 220);
+  // Wake every endpoint that isn't already up.
+  for (const [name, ep] of Object.entries(_endpoints)) {
+    if (!['running', 'initializing'].includes(_normState(ep.state))) {
+      ep.state = 'initializing';
+      _transitions[name] = {
+        finalState: 'running',
+        settleAt: Date.now() + 4000,
+      };
+    }
+  }
+  return _aggregateMock();
+}
+
+export async function setEndpointMode(mode) {
+  await randomDelay(80, 180);
+  _mockMode = mode;
+  if (mode === 'off') {
+    for (const [name, ep] of Object.entries(_endpoints)) {
+      ep.state = 'paused';
+      delete _transitions[name];
+    }
+  } else if (mode === 'on') {
+    for (const [name, ep] of Object.entries(_endpoints)) {
+      if (_normState(ep.state) !== 'running') {
+        ep.state = 'initializing';
+        _transitions[name] = {
+          finalState: 'running',
+          settleAt: Date.now() + 4000,
+        };
+      }
+    }
+  }
+  return {
+    mode: _mockMode,
+    endpoints: Object.values(_endpoints).map((e) => ({ ...e })),
+  };
 }
 
 export async function resumeEndpoint(botName) {

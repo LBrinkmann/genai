@@ -268,9 +268,39 @@ export async function listLLMEndpoints() {
   const response = await client.get(
     '/api/admin/llm-endpoints'
   );
-  // Backend wraps the list as {endpoints: [...]}; the mock returns
-  // a bare array. Normalize so callers always get the array.
-  return response.data?.endpoints || [];
+  // Admin view: per-endpoint rows (with cost) plus the global mode.
+  return {
+    endpoints: response.data?.endpoints || [],
+    mode: response.data?.mode || 'auto',
+  };
+}
+
+// Public (no auth): aggregate readiness for the chat gate. Returns
+// { ready, state, mode } where state is one of
+// ready|waking|asleep|disabled|unavailable.
+export async function getEndpointState() {
+  if (USE_MOCK) return mock.getEndpointState();
+  const response = await client.get('/api/llm-endpoints/state');
+  return response.data;
+}
+
+// Public (no auth): wake all managed endpoints. Returns the same
+// { ready, state, mode } shape reflecting the post-wake state.
+export async function activateEndpoints() {
+  if (USE_MOCK) return mock.activateEndpoints();
+  const response = await client.post('/api/llm-endpoints/activate');
+  return response.data;
+}
+
+// Admin: set the global endpoint mode (auto|on|off). Returns
+// { mode, endpoints }.
+export async function setEndpointMode(mode) {
+  if (USE_MOCK) return mock.setEndpointMode(mode);
+  const response = await realClient.put(
+    '/api/admin/llm-endpoints/mode',
+    { mode }
+  );
+  return response.data;
 }
 
 export async function resumeLLMEndpoint(botName) {

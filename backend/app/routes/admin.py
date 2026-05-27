@@ -17,7 +17,7 @@ from app.config import BotConfig, get_config
 from app.database import get_session
 from app.models import ConfigOverride
 from app.schemas import AdminConfigResponse
-from app.services import config_overrides, hf_endpoints
+from app.services import config_overrides, endpoint_control, hf_endpoints
 from app.services.hf_endpoints import (
     HFAPIError,
     HFAuthError,
@@ -133,22 +133,15 @@ def _unknown_row(bot: BotConfig, message: str) -> dict:
 # ---- Routes ------------------------------------------------------------
 
 
-@router.get(
-    "/llm-endpoints",
-    dependencies=[Depends(require_admin_session)],
-)
-async def list_llm_endpoints() -> dict:
-    """List the live state for every bot with a managed endpoint.
+async def _endpoint_rows(bots: list[BotConfig]) -> list[dict]:
+    """Fetch live HF status for each bot and project to wire rows.
 
     Fans out concurrently via ``asyncio.gather``. A single failed
-    endpoint yields an entry with ``state='unknown'`` and a ``message``
-    explaining the upstream issue, so the UI can still render the
-    other rows.
+    endpoint yields a row with ``state='unknown'`` and a ``message``
+    explaining the upstream issue, so the UI can still render the rest.
     """
-    bots = _managed_bots()
     if not bots:
-        return {"endpoints": []}
-
+        return []
     tasks = [
         hf_endpoints.get_status(
             bot.llm_endpoint.namespace,  # type: ignore[union-attr]
@@ -170,7 +163,79 @@ async def list_llm_endpoints() -> dict:
             rows.append(_unknown_row(bot, detail))
         else:
             rows.append(_row_from_status(bot, result))
-    return {"endpoints": rows}
+    return rows
+
+
+@router.get(
+    "/llm-endpoints",
+    dependencies=[Depends(require_admin_session)],
+)
+async def list_llm_endpoints(
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """List the live state for every managed endpoint, plus the mode."""
+    bots = _managed_bots()
+    rows = await _endpoint_rows(bots)
+    overrides = await config_overrides.load_overrides(session)
+    mode = endpoint_control.read_mode(overrides)
+    return {"endpoints": rows, "mode": mode}
+
+
+@router.put("/llm-endpoints/mode")
+async def set_endpoint_mode(
+    request: Request,
+    payload: dict = Body(default_factory=dict),
+    user: str = Depends(require_admin_session),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Set the global endpoint mode and apply its side-effects.
+
+    ``off`` pauses every managed endpoint (so a scaled-to-zero one can't
+    auto-wake); ``on`` resumes/warms them; ``auto`` leaves current state
+    alone — participants wake them on demand via the public route.
+    """
+    mode = payload.get("mode")
+    if mode not in endpoint_control.MODES:
+        audit_event(
+            "admin.llm.mode",
+            ok=False,
+            user=user,
+            ip=client_ip(request),
+            extra={"mode": str(mode)},
+        )
+        raise HTTPException(
+            status_code=400,
+            detail=f"mode must be one of {sorted(endpoint_control.MODES)}",
+        )
+
+    record = await config_overrides.load_override_record(session)
+    if record is None:
+        record = ConfigOverride(id=1, overrides={})
+        session.add(record)
+    record.overrides = {**(record.overrides or {}), "endpoint_mode": mode}
+    record.updated_by = user
+    record.updated_at = datetime.now(timezone.utc)
+    await session.commit()
+    config_overrides.reset_cache()
+
+    bots = _managed_bots()
+    if mode == "off":
+        await endpoint_control.pause_all(bots)
+    elif mode == "on":
+        await endpoint_control.wake_all(bots)
+    else:
+        endpoint_control.reset_state_cache()
+
+    audit_event(
+        "admin.llm.mode",
+        ok=True,
+        user=user,
+        ip=client_ip(request),
+        extra={"mode": mode},
+    )
+
+    rows = await _endpoint_rows(bots)
+    return {"mode": mode, "endpoints": rows}
 
 
 @router.post("/llm-endpoints/{bot_name}/resume")

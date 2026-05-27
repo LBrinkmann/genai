@@ -7,9 +7,11 @@ import Alert from '@mui/material/Alert';
 import Header from '../components/Header';
 import MessageList from '../components/MessageList';
 import MessageInput from '../components/MessageInput';
+import EndpointGate from '../components/EndpointGate';
 import useConfig from '../hooks/useConfig';
 import useSession from '../hooks/useSession';
 import useChat from '../hooks/useChat';
+import useEndpoints from '../hooks/useEndpoints';
 import { saveMessage } from '../services/api';
 
 /**
@@ -151,6 +153,12 @@ function ChatPage() {
 
   const [sessionError, setSessionError] = useState(null);
   const reducedMotion = useReducedMotion();
+  const {
+    ready: endpointReady,
+    state: endpointState,
+    activating: endpointActivating,
+    activate: activateEndpoint,
+  } = useEndpoints();
 
   useEffect(() => {
     if (config && !sessionId) {
@@ -263,7 +271,15 @@ function ChatPage() {
         </Alert>
       )}
       <footer className="flex flex-col gap-3 px-6 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 md:pb-4">
-        <MessageInput onSend={sendMessage} disabled={isLoading} />
+        {endpointReady ? (
+          <MessageInput onSend={sendMessage} disabled={isLoading} />
+        ) : (
+          <EndpointGate
+            state={endpointState}
+            activating={endpointActivating}
+            onActivate={activateEndpoint}
+          />
+        )}
         <nav
           aria-label="Site"
           className="mx-auto flex w-full max-w-2xl flex-wrap justify-center gap-x-6 gap-y-2 text-xs text-zinc-500"

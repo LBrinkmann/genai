@@ -8,6 +8,11 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from itsdangerous import TimestampSigner
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from app.auth import SESSION_COOKIE_NAME
 from app.config import (
@@ -17,7 +22,10 @@ from app.config import (
     FeedbackConfig,
     LLMEndpointConfig,
 )
+from app.database import get_session
+from app.models import Base
 from app.routes.admin import router as admin_router
+from app.services import config_overrides, endpoint_control
 from app.services.hf_endpoints import (
     HFAuthError,
     HFTimeoutError,
@@ -25,6 +33,32 @@ from app.services.hf_endpoints import (
 
 TEST_SESSION_SECRET = "test-secret-for-tests-only-not-prod-32-bytes-pad"
 TEST_USER = "admin"
+
+
+# ---- DB (in-memory sqlite) ---------------------------------------------
+
+_test_engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
+_test_session_factory = async_sessionmaker(
+    _test_engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+)
+
+
+async def _override_get_session():
+    async with _test_session_factory() as session:
+        yield session
+
+
+@pytest.fixture(autouse=True)
+async def _setup_tables():
+    async with _test_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    config_overrides.reset_cache()
+    endpoint_control.reset_state_cache()
+    yield
+    async with _test_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
 
 
 # ---- Fixtures ----------------------------------------------------------
@@ -43,6 +77,7 @@ def app(env):
     """Minimal FastAPI app with only the admin router mounted."""
     fastapi_app = FastAPI()
     fastapi_app.include_router(admin_router)
+    fastapi_app.dependency_overrides[get_session] = _override_get_session
     return fastapi_app
 
 
@@ -145,7 +180,7 @@ def test_list_with_no_managed_bots_returns_empty(client, monkeypatch):
     _attach_session(client)
     resp = client.get("/api/admin/llm-endpoints")
     assert resp.status_code == 200
-    assert resp.json() == {"endpoints": []}
+    assert resp.json() == {"endpoints": [], "mode": "auto"}
 
 
 def test_list_returns_managed_endpoint_state(client, monkeypatch):
@@ -159,6 +194,7 @@ def test_list_returns_managed_endpoint_state(client, monkeypatch):
         resp = client.get("/api/admin/llm-endpoints")
     assert resp.status_code == 200
     data = resp.json()
+    assert data["mode"] == "auto"
     assert len(data["endpoints"]) == 1
     row = data["endpoints"][0]
     assert row["bot_name"] == "genocide-ai"
@@ -243,3 +279,66 @@ def test_hf_timeout_returns_504(client, monkeypatch):
             "/api/admin/llm-endpoints/genocide-ai/pause",
         )
     assert resp.status_code == 504
+
+
+# ---- Mode route --------------------------------------------------------
+
+
+def test_set_mode_requires_auth(client, monkeypatch):
+    """Setting the mode without a session cookie → 401."""
+    _set_test_config(monkeypatch, [_MANAGED_BOT])
+    resp = client.put("/api/admin/llm-endpoints/mode", json={"mode": "off"})
+    assert resp.status_code == 401
+
+
+def test_set_mode_rejects_invalid_value(client, monkeypatch):
+    """An unknown mode value → 400."""
+    _set_test_config(monkeypatch, [_MANAGED_BOT])
+    _attach_session(client)
+    resp = client.put("/api/admin/llm-endpoints/mode", json={"mode": "banana"})
+    assert resp.status_code == 400
+
+
+def test_set_mode_off_pauses_all_and_persists(client, monkeypatch):
+    """Mode 'off' pauses every managed endpoint and is read back."""
+    _set_test_config(monkeypatch, [_MANAGED_BOT, _UNMANAGED_BOT])
+    _attach_session(client)
+    pause_mock = AsyncMock(return_value=_norm("paused"))
+    get_mock = AsyncMock(return_value=_norm("paused"))
+    with patch(
+        "app.services.endpoint_control.hf_endpoints.pause", new=pause_mock
+    ), patch("app.routes.admin.hf_endpoints.get_status", new=get_mock):
+        resp = client.put(
+            "/api/admin/llm-endpoints/mode", json={"mode": "off"}
+        )
+    assert resp.status_code == 200
+    assert resp.json()["mode"] == "off"
+    # Only the managed bot is paused.
+    pause_mock.assert_awaited_once_with("NoraAl", "genocideai-01-ywg")
+
+    # The mode persists and the list route reports it.
+    list_resp = client.get("/api/admin/llm-endpoints")
+    assert list_resp.json()["mode"] == "off"
+
+
+def test_set_mode_auto_has_no_side_effects(client, monkeypatch):
+    """Mode 'auto' neither pauses nor wakes — just records the choice."""
+    _set_test_config(monkeypatch, [_MANAGED_BOT])
+    _attach_session(client)
+    pause_mock = AsyncMock()
+    resume_mock = AsyncMock()
+    get_mock = AsyncMock(return_value=_norm("running"))
+    with patch(
+        "app.services.endpoint_control.hf_endpoints.pause", new=pause_mock
+    ), patch(
+        "app.services.endpoint_control.hf_endpoints.resume", new=resume_mock
+    ), patch(
+        "app.routes.admin.hf_endpoints.get_status", new=get_mock
+    ):
+        resp = client.put(
+            "/api/admin/llm-endpoints/mode", json={"mode": "auto"}
+        )
+    assert resp.status_code == 200
+    assert resp.json()["mode"] == "auto"
+    pause_mock.assert_not_awaited()
+    resume_mock.assert_not_awaited()

@@ -16,9 +16,16 @@ bots:
     system_message: "You are a helpful assistant. Keep your answers brief and to the point."
 
   # Example of a bot backed by a managed HuggingFace Inference
-  # Endpoint. The optional ``llm_endpoint`` block tells the admin UI
-  # that this bot can be started/stopped on demand. Omit the block for
-  # bots that don't need a control surface.
+  # Endpoint. The optional ``llm_endpoint`` block tells the app this
+  # bot can be started/stopped on demand: the admin gear menu exposes
+  # per-endpoint Start/Stop plus a global Auto/On/Off mode, and (in Auto
+  # or On mode) the public chat shows a "Wake the AI" button instead of
+  # the composer while the endpoint is asleep.
+  #
+  # IMPORTANT: enable **scale-to-zero** on the HF endpoint itself (HF
+  # dashboard → endpoint → Autoscaling). That native idle-shutoff is
+  # what bounds cost — the app intentionally runs no shutoff timer of
+  # its own. Omit the whole block for bots without a control surface.
   - name: "hf-managed-example"
     model: "NoraAl/GENocideAI-01"
     api_url: "https://twt8ziu7jvtabi5l.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions"
