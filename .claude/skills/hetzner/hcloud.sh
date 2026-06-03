@@ -194,8 +194,12 @@ cmd_init() {
   local project_root; project_root="$(cd "$(dirname "$0")/../../.." && pwd)"
   scp_cmd "$project_root/.env" "root@$ip:/opt/genai/.env"
   scp_cmd "$project_root/config/experiment.yml" "root@$ip:/opt/genai/config/experiment.yml"
-  # Fix API URL to use server IP via Caddy
-  ssh_cmd "root@$ip" "sed -i 's|REACT_APP_API_URL=.*|REACT_APP_API_URL=http://$ip|' /opt/genai/.env"
+  # Force REACT_APP_API_URL to empty so the frontend uses RELATIVE URLs
+  # (same origin as the page). Required for Cloudflare/HTTPS access:
+  # baking the bare IP over HTTP triggers mixed-content blocks when the
+  # site is served via HTTPS. api.js falls back to localhost:8000 only
+  # when the var is unset; an explicit empty string means "relative".
+  ssh_cmd "root@$ip" "sed -i 's|REACT_APP_API_URL=.*|REACT_APP_API_URL=|' /opt/genai/.env"
   # Caddyfile for IP-only (no domain yet)
   ssh_cmd "root@$ip" "cat > /opt/genai/Caddyfile << 'EOF'
 :80 {

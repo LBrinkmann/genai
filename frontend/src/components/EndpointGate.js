@@ -24,7 +24,7 @@ function EndpointGate({ state, activating, onActivate }) {
           aria-hidden
         />
         <p className="text-sm text-zinc-300">
-          Waking the AI… this can take up to a minute.
+          Waking the AI… this can take up to 3 minutes.
         </p>
       </div>
     );

@@ -5,8 +5,12 @@ const USE_MOCK =
 
 const mock = USE_MOCK ? require('./mockApi') : null;
 
+// `??` (not `||`) so an explicit empty string passes through — that
+// case means "use relative URLs, same origin as the page". This avoids
+// mixed-content errors in prod, where the page is served via HTTPS
+// (Cloudflare) but the server backs onto plain HTTP behind Caddy.
 const API_URL =
-  process.env.REACT_APP_API_URL || 'http://localhost:8000';
+  process.env.REACT_APP_API_URL ?? 'http://localhost:8000';
 
 const realClient = axios.create({
   baseURL: API_URL,
