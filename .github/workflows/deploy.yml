@@ -2,6 +2,7 @@ name: Deploy
 on:
   push:
     branches: [dev]
+  workflow_dispatch: {}
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -12,7 +13,17 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
+          command_timeout: 15m
           script: |
+            set -e
             cd /opt/genai
             git pull
+            # The frontend container builds into the `frontend-static`
+            # named volume; Caddy serves from it. `up --build` alone
+            # rebuilds the image but leaves the volume populated, so the
+            # bundle Caddy serves never actually refreshes. Mirror what
+            # hcloud.sh deploy does: tear down frontend+caddy, wipe the
+            # volume, then rebuild. Backend/db keep running.
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml down frontend caddy
+            docker volume rm -f genai_frontend-static
             docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
