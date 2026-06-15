@@ -3,7 +3,7 @@ import React from 'react';
 /**
  * Replaces the chat composer when the managed endpoints aren't ready.
  * Covers the non-ready `state` values surfaced by `useEndpoints`:
- *   - asleep      → "Wake the AI" button (public, no login)
+ *   - asleep      → "Start the AI for testing" button (public, no login)
  *   - waking      → spinner, no action (poll will flip to ready)
  *   - disabled    → admin turned chat off
  *   - unavailable → HF unreachable; offer a retry via the same wake
@@ -24,7 +24,7 @@ function EndpointGate({ state, activating, onActivate }) {
           aria-hidden
         />
         <p className="text-sm text-zinc-300">
-          Waking the AI… this can take up to 3 minutes.
+          Starting the AI… this can take up to 3 minutes.
         </p>
       </div>
     );
@@ -46,7 +46,7 @@ function EndpointGate({ state, activating, onActivate }) {
       <p className="text-sm text-zinc-300">
         {isError
           ? "Couldn't reach the AI right now."
-          : 'The AI is asleep to save costs.'}
+          : 'The AI is paused to save costs.'}
       </p>
       <button
         type="button"
@@ -54,7 +54,7 @@ function EndpointGate({ state, activating, onActivate }) {
         disabled={activating}
         className="rounded-xl bg-white px-6 py-3 font-medium text-black transition-colors hover:bg-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-400 focus:ring-offset-2 focus:ring-offset-black disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {activating ? 'Starting…' : isError ? 'Retry' : 'Wake the AI'}
+        {activating ? 'Starting…' : isError ? 'Retry' : 'Start the AI for testing'}
       </button>
       {!isError && (
         <p className="text-xs text-zinc-500">

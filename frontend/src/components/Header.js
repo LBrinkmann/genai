@@ -313,11 +313,11 @@ function Header({ onReset, configName }) {
                       </div>
                       <div className="mt-1 text-[10px] text-zinc-500">
                         {mode === 'auto' &&
-                          'Visitors can wake the AI; it sleeps when idle.'}
+                          'Visitors can start the AI for testing; it pauses when idle.'}
                         {mode === 'on' &&
-                          'Chat always on (still sleeps when idle, wakes on use).'}
+                          'Chat always on (still pauses when idle, starts on use).'}
                         {mode === 'off' &&
-                          'Endpoints paused; visitors cannot wake them.'}
+                          'Endpoints paused; visitors cannot start the AI for testing.'}
                       </div>
                     </div>
                     {endpoints.map((ep) => {
