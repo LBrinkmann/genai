@@ -1,0 +1,3007 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dissolution Design Studio</title>
+<style>
+  /* ── Reset & Base ─────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0a0a0f;
+    color: #e0e0e0;
+    font-family: Georgia, 'Times New Roman', serif;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* ── Header ───────────────────────────────────────────── */
+  header {
+    text-align: center;
+    padding: 48px 24px 32px;
+    border-bottom: 1px solid #1a1a2e;
+  }
+  header h1 {
+    font-size: 14px;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    color: #6a6a7a;
+    font-weight: 400;
+  }
+  header p {
+    margin-top: 8px;
+    font-size: 13px;
+    color: #3a3a4a;
+    font-style: italic;
+  }
+
+  /* ── Panel ────────────────────────────────────────────── */
+  .panel {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 24px;
+    border-bottom: 1px solid #1a1a2e;
+  }
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .panel-label {
+    font-size: 12px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #5a5a6a;
+    font-weight: 400;
+  }
+  .panel-sublabel {
+    font-size: 11px;
+    color: #3a3a4a;
+    margin-top: 2px;
+    font-style: italic;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .replay-btn {
+    background: none;
+    border: 1px solid #2a2a3e;
+    color: #5a5a6a;
+    padding: 4px 14px;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    font-family: Georgia, serif;
+    transition: border-color 0.3s, color 0.3s;
+  }
+  .replay-btn:hover {
+    border-color: #4a4a5e;
+    color: #8a8a9a;
+  }
+
+  /* ── Effect containers ────────────────────────────────── */
+  .effect-area {
+    position: relative;
+    width: 100%;
+    height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border: 1px solid #14141e;
+    border-radius: 4px;
+    background: #0c0c14;
+  }
+
+  /* ── Effect 1: CSS Fade & Scatter ─────────────────────── */
+  .scatter-text {
+    font-size: 20px;
+    color: #e0e0e0;
+    text-align: center;
+    max-width: 700px;
+    padding: 0 20px;
+    line-height: 1.8;
+  }
+  .scatter-text .char {
+    display: inline-block;
+    transition: transform 1.8s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+                opacity 1.8s ease-out;
+    will-change: transform, opacity;
+  }
+  .scatter-text .char.dissolve {
+    opacity: 0;
+  }
+  .scatter-text .char.hidden {
+    opacity: 0;
+  }
+  .scatter-text .char.appear {
+    opacity: 1;
+    transform: none !important;
+    transition: opacity 0.8s ease-in;
+  }
+
+  /* ── Effect 2: CSS Clip-Path Grid ─────────────────────── */
+  .grid-container {
+    position: relative;
+    width: 700px;
+    height: 200px;
+  }
+  .grid-cell {
+    position: absolute;
+    overflow: hidden;
+    transition: transform 2s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+                opacity 2s ease-out;
+    will-change: transform, opacity;
+  }
+  .grid-cell-inner {
+    position: absolute;
+    font-size: 20px;
+    color: #e0e0e0;
+    line-height: 1.8;
+    text-align: center;
+    white-space: normal;
+    width: 700px;
+  }
+  .grid-cell.dissolve {
+    opacity: 0;
+  }
+  .grid-cell.hidden { opacity: 0; }
+  .grid-cell.appear {
+    opacity: 1;
+    transform: none !important;
+    transition: opacity 0.8s ease-in;
+  }
+
+  /* ── Slider controls ─────────────────────────────────── */
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 8px 0;
+  }
+  .control {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 120px;
+  }
+  .control label {
+    font-size: 11px;
+    color: #888;
+    font-family: 'Inter', sans-serif;
+  }
+  .control input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 4px;
+    background: #333;
+    border-radius: 2px;
+    outline: none;
+  }
+  .control input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    background: #888;
+    border-radius: 50%;
+    cursor: pointer;
+  }
+
+  /* ── Canvas containers ────────────────────────────────── */
+  .effect-area canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Dissolution Design Studio</h1>
+  <p>Eleven approaches to making text vanish</p>
+</header>
+
+<!-- Effect 1 -->
+<section class="panel" id="panel1">
+  <div class="panel-header">
+    <div>
+      <div class="panel-label">Effect 1: CSS Fade &amp; Scatter</div>
+      <div class="panel-sublabel">Pure CSS transitions, per-character transforms</div>
+    </div>
+    <button class="replay-btn" data-effect="1">Replay</button>
+  </div>
+  <div class="controls" id="controls1">
+    <div class="control">
+      <label>Scatter distance: <span id="e1-scatter-val">200</span>px</label>
+      <input type="range" id="e1-scatter" min="50" max="500" value="200" step="10">
+    </div>
+    <div class="control">
+      <label>Duration: <span id="e1-duration-val">1.5</span>s</label>
+      <input type="range" id="e1-duration" min="0.5" max="3" value="1.5" step="0.1">
+    </div>
+    <div class="control">
+      <label>Rotation max: <span id="e1-rotation-val">360</span>deg</label>
+      <input type="range" id="e1-rotation" min="0" max="720" value="360" step="10">
+    </div>
+  </div>
+  <div class="effect-area" id="area1">
+    <div class="scatter-text" id="scatter-text"></div>
+  </div>
+</section>
+
+<!-- Effect 2 -->
+<section class="panel" id="panel2">
+  <div class="panel-header">
+    <div>
+      <div class="panel-label">Effect 2: CSS Clip-Path Grid</div>
+      <div class="panel-sublabel">Shattering grid cells, each drifting independently</div>
+    </div>
+    <button class="replay-btn" data-effect="2">Replay</button>
+  </div>
+  <div class="controls" id="controls2">
+    <div class="control">
+      <label>Grid columns: <span id="e2-cols-val">14</span></label>
+      <input type="range" id="e2-cols" min="4" max="20" value="14" step="1">
+    </div>
+    <div class="control">
+      <label>Grid rows: <span id="e2-rows-val">7</span></label>
+      <input type="range" id="e2-rows" min="2" max="10" value="7" step="1">
+    </div>
+    <div class="control">
+      <label>Drift distance: <span id="e2-drift-val">150</span>px</label>
+      <input type="range" id="e2-drift" min="50" max="400" value="150" step="10">
+    </div>
+  </div>
+  <div class="effect-area" id="area2">
+    <div class="grid-container" id="grid-container"></div>
+  </div>
+</section>
+
+<!-- Effect 3 -->
+<section class="panel" id="panel3">
+  <div class="panel-header">
+    <div>
+      <div class="panel-label">Effect 3: Canvas Pixel Sampling &mdash; Basic</div>
+      <div class="panel-sublabel">Gravity-driven particle fall with fade</div>
+    </div>
+    <button class="replay-btn" data-effect="3">Replay</button>
+  </div>
+  <div class="controls" id="controls3">
+    <div class="control">
+      <label>Gravity: <span id="e3-gravity-val">40</span></label>
+      <input type="range" id="e3-gravity" min="5" max="80" value="40" step="1">
+    </div>
+    <div class="control">
+      <label>Particle count: <span id="e3-count-val">1</span>x</label>
+      <input type="range" id="e3-count" min="0.5" max="3" value="1" step="0.1">
+    </div>
+    <div class="control">
+      <label>Particle size: <span id="e3-size-val">1.5</span></label>
+      <input type="range" id="e3-size" min="0.5" max="4" value="1.5" step="0.1">
+    </div>
+  </div>
+  <div class="effect-area" id="area3">
+    <canvas id="canvas3"></canvas>
+  </div>
+</section>
+
+<!-- Effect 4 -->
+<section class="panel" id="panel4">
+  <div class="panel-header">
+    <div>
+      <div class="panel-label">Effect 4: Canvas Pixel Sampling &mdash; Wind &amp; Turbulence</div>
+      <div class="panel-sublabel">Sine-wave turbulence, glow, organic drift</div>
+    </div>
+    <button class="replay-btn" data-effect="4">Replay</button>
+  </div>
+  <div class="controls" id="controls4">
+    <div class="control">
+      <label>Wind strength: <span id="e4-wind-val">-0.6</span></label>
+      <input type="range" id="e4-wind" min="-2" max="2" value="-0.6" step="0.1">
+    </div>
+    <div class="control">
+      <label>Turbulence: <span id="e4-turb-val">15</span></label>
+      <input type="range" id="e4-turb" min="0" max="30" value="15" step="1">
+    </div>
+    <div class="control">
+      <label>Glow intensity: <span id="e4-glow-val">2.5</span></label>
+      <input type="range" id="e4-glow" min="0" max="5" value="2.5" step="0.1">
+    </div>
+    <div class="control">
+      <label>Particle size: <span id="e4-size-val">2</span></label>
+      <input type="range" id="e4-size" min="0.5" max="4" value="2" step="0.1">
+    </div>
+  </div>
+  <div class="effect-area" id="area4">
+    <canvas id="canvas4"></canvas>
+  </div>
+</section>
+
+<!-- Effect 5 -->
+<section class="panel" id="panel5">
+  <div class="panel-header">
+    <div>
+      <div class="panel-label">Effect 5: Canvas Pixel Sampling &mdash; Full Physics</div>
+      <div class="panel-sublabel">Gusting wind, trails, splitting, color shift, cinematic</div>
+    </div>
+    <button class="replay-btn" data-effect="5">Replay</button>
+  </div>
+  <div class="controls" id="controls5">
+    <div class="control">
+      <label>Wind strength: <span id="e5-wind-val">-0.8</span></label>
+      <input type="range" id="e5-wind" min="-2" max="2" value="-0.8" step="0.1">
+    </div>
+    <div class="control">
+      <label>Gust intensity: <span id="e5-gust-val">1</span></label>
+      <input type="range" id="e5-gust" min="0" max="3" value="1" step="0.1">
+    </div>
+    <div class="control">
+      <label>Trail length: <span id="e5-trail-val">6</span></label>
+      <input type="range" id="e5-trail" min="0" max="8" value="6" step="1">
+    </div>
+    <div class="control">
+      <label>Split chance: <span id="e5-split-val">0.08</span></label>
+      <input type="range" id="e5-split" min="0" max="0.2" value="0.08" step="0.01">
+    </div>
+    <div class="control">
+      <label>Drag: <span id="e5-drag-val">0.001</span></label>
+      <input type="range" id="e5-drag" min="0" max="0.003" value="0.001" step="0.0001">
+    </div>
+  </div>
+  <div class="effect-area" id="area5">
+    <canvas id="canvas5"></canvas>
+  </div>
+</section>
+
+<!-- Effect 6 -->
+<section class="panel" id="panel6">
+  <div class="panel-header">
+    <div>
+      <div class="panel-label">Effect 6: Dust &mdash; Micro Particles</div>
+      <div class="panel-sublabel">Fine matte dust, earth-tone palette, no glow</div>
+    </div>
+    <button class="replay-btn" data-effect="6">Replay</button>
+  </div>
+  <div class="controls" id="controls6">
+    <div class="control">
+      <label>Wind strength: <span id="e6-wind-val">-0.4</span></label>
+      <input type="range" id="e6-wind" min="-2" max="2" value="-0.4" step="0.1">
+    </div>
+    <div class="control">
+      <label>Particle size max: <span id="e6-size-val">1.5</span></label>
+      <input type="range" id="e6-size" min="0.3" max="2" value="1.5" step="0.1">
+    </div>
+    <div class="control">
+      <label>Density: <span id="e6-density-val">2</span></label>
+      <input type="range" id="e6-density" min="1" max="4" value="2" step="0.5">
+    </div>
+  </div>
+  <div class="effect-area" id="area6">
+    <canvas id="canvas6"></canvas>
+  </div>
+</section>
+
+<!-- Effect 7 -->
+<section class="panel" id="panel7">
+  <div class="panel-header">
+    <div>
+      <div class="panel-label">Effect 7: Dust &mdash; Plumes &amp; Clusters</div>
+      <div class="panel-sublabel">Coherent plume streams with layered sine-wave curl</div>
+    </div>
+    <button class="replay-btn" data-effect="7">Replay</button>
+  </div>
+  <div class="controls" id="controls7">
+    <div class="control">
+      <label>Plume size: <span id="e7-plume-val">15</span></label>
+      <input type="range" id="e7-plume" min="5" max="30" value="15" step="1">
+    </div>
+    <div class="control">
+      <label>Curl frequency: <span id="e7-curl-val">2</span></label>
+      <input type="range" id="e7-curl" min="0.5" max="4" value="2" step="0.1">
+    </div>
+    <div class="control">
+      <label>Air resistance: <span id="e7-air-val">0.97</span></label>
+      <input type="range" id="e7-air" min="0.9" max="0.999" value="0.97" step="0.001">
+    </div>
+  </div>
+  <div class="effect-area" id="area7">
+    <canvas id="canvas7"></canvas>
+  </div>
+</section>
+
+<!-- Effect 8 -->
+<section class="panel" id="panel8">
+  <div class="panel-header">
+    <div>
+      <div class="panel-label">Effect 8: Dust &mdash; Gravity Cascade</div>
+      <div class="panel-sublabel">Sand-like crumble with ground accumulation</div>
+    </div>
+    <button class="replay-btn" data-effect="8">Replay</button>
+  </div>
+  <div class="controls" id="controls8">
+    <div class="control">
+      <label>Gravity: <span id="e8-gravity-val">60</span></label>
+      <input type="range" id="e8-gravity" min="20" max="100" value="60" step="1">
+    </div>
+    <div class="control">
+      <label>Bounce probability: <span id="e8-bounce-val">0.3</span></label>
+      <input type="range" id="e8-bounce" min="0" max="1" value="0.3" step="0.05">
+    </div>
+    <div class="control">
+      <label>Tumble intensity: <span id="e8-tumble-val">10</span></label>
+      <input type="range" id="e8-tumble" min="0" max="30" value="10" step="1">
+    </div>
+  </div>
+  <div class="effect-area" id="area8">
+    <canvas id="canvas8"></canvas>
+  </div>
+</section>
+
+<!-- Effect 9 -->
+<section class="panel" id="panel9">
+  <div class="panel-header">
+    <div>
+      <div class="panel-label">Effect 9: Dust &mdash; Breath of Wind</div>
+      <div class="panel-sublabel">Gusting streamlines, motion blur, cinematic realism</div>
+    </div>
+    <button class="replay-btn" data-effect="9">Replay</button>
+  </div>
+  <div class="controls" id="controls9">
+    <div class="control">
+      <label>Gust peak: <span id="e9-gust-val">60</span></label>
+      <input type="range" id="e9-gust" min="20" max="100" value="60" step="1">
+    </div>
+    <div class="control">
+      <label>Gust frequency: <span id="e9-freq-val">1</span></label>
+      <input type="range" id="e9-freq" min="0.5" max="3" value="1" step="0.1">
+    </div>
+    <div class="control">
+      <label>Weight variation: <span id="e9-weight-val">1.5</span></label>
+      <input type="range" id="e9-weight" min="0.5" max="3" value="1.5" step="0.1">
+    </div>
+  </div>
+  <div class="effect-area" id="area9">
+    <canvas id="canvas9"></canvas>
+  </div>
+</section>
+
+<!-- Effect 10 -->
+<section class="panel" id="panel10">
+  <div class="panel-header">
+    <div>
+      <div class="panel-label">Effect 10: Dust &mdash; Entropy</div>
+      <div class="panel-sublabel">Sequential character decay with ambient dust lingering</div>
+    </div>
+    <button class="replay-btn" data-effect="10">Replay</button>
+  </div>
+  <div class="controls" id="controls10">
+    <div class="control">
+      <label>Dissolve speed: <span id="e10-speed-val">1</span>x</label>
+      <input type="range" id="e10-speed" min="0.5" max="3" value="1" step="0.1">
+    </div>
+    <div class="control">
+      <label>Gravity: <span id="e10-gravity-val">5</span></label>
+      <input type="range" id="e10-gravity" min="1" max="20" value="5" step="0.5">
+    </div>
+    <div class="control">
+      <label>Fade speed: <span id="e10-fade-val">0.12</span></label>
+      <input type="range" id="e10-fade" min="0.05" max="0.5" value="0.12" step="0.01">
+    </div>
+    <div class="control">
+      <label>Ambient count: <span id="e10-ambient-val">40</span></label>
+      <input type="range" id="e10-ambient" min="0" max="80" value="40" step="1">
+    </div>
+  </div>
+  <div class="effect-area" id="area10">
+    <canvas id="canvas10"></canvas>
+  </div>
+</section>
+
+<!-- Effect 11 -->
+<section class="panel" id="panel11">
+  <div class="panel-header">
+    <div>
+      <div class="panel-label">Effect 11: Dust &mdash; Simultaneous Entropy</div>
+      <div class="panel-sublabel">Full text dissolves at once with mixed behaviors, ambient dust, lingering particles</div>
+    </div>
+    <button class="replay-btn" data-effect="11">Replay</button>
+  </div>
+  <div class="controls" id="controls11">
+    <div class="control">
+      <label>Stagger: <span id="e11-stagger-val">0.3</span>s</label>
+      <input type="range" id="e11-stagger" min="0" max="1" value="0.3" step="0.05">
+    </div>
+    <div class="control">
+      <label>Gravity: <span id="e11-gravity-val">5</span></label>
+      <input type="range" id="e11-gravity" min="1" max="20" value="5" step="0.5">
+    </div>
+    <div class="control">
+      <label>Fade speed: <span id="e11-fade-val">0.12</span></label>
+      <input type="range" id="e11-fade" min="0.05" max="0.5" value="0.12" step="0.01">
+    </div>
+    <div class="control">
+      <label>Ambient count: <span id="e11-ambient-val">40</span></label>
+      <input type="range" id="e11-ambient" min="0" max="80" value="40" step="1">
+    </div>
+  </div>
+  <div class="effect-area" id="area11">
+    <canvas id="canvas11"></canvas>
+  </div>
+</section>
+
+<div style="height:60px"></div>
+
+<script>
+// ============================================================
+//  SHARED CONSTANTS
+// ============================================================
+const SAMPLE_TEXT =
+  'Every testimony carries the weight of a thousand unspoken words. ' +
+  'In the silence between sentences, entire worlds collapse and reform.';
+
+const PHASE_FADE_IN  = 'fadeIn';   // ~1s
+const PHASE_HOLD     = 'hold';     // ~2s
+const PHASE_DISSOLVE = 'dissolve'; // ~3s
+const PHASE_PAUSE    = 'pause';    // ~1s
+
+// ============================================================
+//  INTERSECTION OBSERVER — only animate visible panels
+// ============================================================
+const visiblePanels = new Set();
+const observer = new IntersectionObserver(
+  (entries) => {
+    entries.forEach((e) => {
+      if (e.isIntersecting) visiblePanels.add(e.target.id);
+      else visiblePanels.delete(e.target.id);
+    });
+  },
+  { threshold: 0.1 }
+);
+document.querySelectorAll('.panel').forEach((p) => observer.observe(p));
+
+// ============================================================
+//  DUST COLOR PALETTE — shared by effects 6-10
+// ============================================================
+const DUST_COLORS = [
+  '#d4c5a0', // beige
+  '#a89f91', // warm grey
+  '#c8b88a', // pale sand
+  '#8a8580', // ash
+  '#d9d0c0', // bone
+  '#b8a88a', // khaki
+  '#9a8e7a', // taupe
+];
+
+function parseDustColor(hex) {
+  return {
+    r: parseInt(hex.slice(1, 3), 16),
+    g: parseInt(hex.slice(3, 5), 16),
+    b: parseInt(hex.slice(5, 7), 16),
+  };
+}
+
+const DUST_COLORS_RGB = DUST_COLORS.map(parseDustColor);
+
+function randomDustColor() {
+  return DUST_COLORS_RGB[
+    Math.floor(Math.random() * DUST_COLORS_RGB.length)
+  ];
+}
+
+/**
+ * Like sampleTextPixels but with finer 2px step for denser particles.
+ */
+function sampleTextPixelsFine(text, width, height, fontSize, fontFamily) {
+  const off = document.createElement('canvas');
+  off.width = width;
+  off.height = height;
+  const ctx = off.getContext('2d');
+
+  ctx.fillStyle = '#e0e0e0';
+  ctx.font = `${fontSize}px ${fontFamily}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+
+  const words = text.split(' ');
+  const lines = [];
+  let line = '';
+  const maxW = width - 80;
+  for (const w of words) {
+    const test = line ? line + ' ' + w : w;
+    if (ctx.measureText(test).width > maxW && line) {
+      lines.push(line);
+      line = w;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+
+  const lineHeight = fontSize * 1.8;
+  const totalH = lines.length * lineHeight;
+  const startY = (height - totalH) / 2;
+
+  lines.forEach((l, i) => {
+    ctx.fillText(l, width / 2, startY + i * lineHeight);
+  });
+
+  const data = ctx.getImageData(0, 0, width, height).data;
+  const points = [];
+  const step = 2;
+  for (let y = 0; y < height; y += step) {
+    for (let x = 0; x < width; x += step) {
+      const idx = (y * width + x) * 4;
+      if (data[idx + 3] > 128) {
+        points.push({ x, y });
+      }
+    }
+  }
+  return points;
+}
+
+/**
+ * Sample text pixels per-character, returning an array of
+ * { x, y, charIndex } for sequential dissolution effects.
+ */
+function sampleTextPixelsPerChar(text, width, height, fontSize, fontFamily) {
+  const off = document.createElement('canvas');
+  off.width = width;
+  off.height = height;
+  const offCtx = off.getContext('2d');
+
+  offCtx.font = `${fontSize}px ${fontFamily}`;
+  offCtx.textAlign = 'center';
+  offCtx.textBaseline = 'top';
+
+  // Word-wrap
+  const words = text.split(' ');
+  const lines = [];
+  let line = '';
+  const maxW = width - 80;
+  for (const w of words) {
+    const test = line ? line + ' ' + w : w;
+    if (offCtx.measureText(test).width > maxW && line) {
+      lines.push(line);
+      line = w;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+
+  const lineHeight = fontSize * 1.8;
+  const totalH = lines.length * lineHeight;
+  const startY = (height - totalH) / 2;
+
+  // Build character bounding boxes
+  const charBoxes = [];
+  let globalCharIdx = 0;
+  lines.forEach((ln, li) => {
+    const lineY = startY + li * lineHeight;
+    const lineW = offCtx.measureText(ln).width;
+    let cx = width / 2 - lineW / 2;
+    for (let ci = 0; ci < ln.length; ci++) {
+      const ch = ln[ci];
+      const cw = offCtx.measureText(ch).width;
+      charBoxes.push({
+        charIndex: globalCharIdx++,
+        x: cx,
+        y: lineY,
+        w: cw,
+        h: lineHeight,
+      });
+      cx += cw;
+    }
+    // Count the space between lines (if not last line)
+    if (li < lines.length - 1) globalCharIdx++;
+  });
+
+  // Render full text
+  offCtx.fillStyle = '#e0e0e0';
+  lines.forEach((l, i) => {
+    offCtx.fillText(l, width / 2, startY + i * lineHeight);
+  });
+
+  const data = offCtx.getImageData(0, 0, width, height).data;
+  const points = [];
+  const step = 2;
+  for (let y = 0; y < height; y += step) {
+    for (let x = 0; x < width; x += step) {
+      const idx = (y * width + x) * 4;
+      if (data[idx + 3] > 128) {
+        // Find which character this pixel belongs to
+        let ci = 0;
+        for (const box of charBoxes) {
+          if (
+            x >= box.x && x < box.x + box.w &&
+            y >= box.y && y < box.y + box.h
+          ) {
+            ci = box.charIndex;
+            break;
+          }
+        }
+        points.push({ x, y, charIndex: ci });
+      }
+    }
+  }
+  return { points, totalChars: globalCharIdx };
+}
+
+/** Draw wrapped text helper shared by dust effects. */
+function drawWrappedText(ctx, text, W, H, alpha) {
+  ctx.clearRect(0, 0, W, H);
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = '#e0e0e0';
+  ctx.font = '20px Georgia, serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  const words = text.split(' ');
+  const lines = []; let line = '';
+  const maxW = W - 80;
+  for (const wd of words) {
+    const test = line ? line + ' ' + wd : wd;
+    if (ctx.measureText(test).width > maxW && line) {
+      lines.push(line); line = wd;
+    } else { line = test; }
+  }
+  if (line) lines.push(line);
+  const lh = 36, totalH = lines.length * lh;
+  const startY = (H - totalH) / 2;
+  lines.forEach((l, i) => ctx.fillText(l, W / 2, startY + i * lh));
+  ctx.restore();
+}
+
+// ============================================================
+//  EFFECT 1: CSS Fade & Scatter
+// ============================================================
+(function effect1() {
+  const container = document.getElementById('scatter-text');
+  let chars = [];
+
+  // Slider-controlled parameters
+  let scatterDist = 200;
+  let duration = 1.5;
+  let rotationMax = 360;
+
+  function readSliders() {
+    scatterDist = parseFloat(document.getElementById('e1-scatter').value);
+    duration = parseFloat(document.getElementById('e1-duration').value);
+    rotationMax = parseFloat(document.getElementById('e1-rotation').value);
+    document.getElementById('e1-scatter-val').textContent = scatterDist;
+    document.getElementById('e1-duration-val').textContent = duration;
+    document.getElementById('e1-rotation-val').textContent = rotationMax;
+  }
+
+  // Split text into span-per-character
+  function buildChars() {
+    container.innerHTML = '';
+    chars = [];
+    for (const ch of SAMPLE_TEXT) {
+      const span = document.createElement('span');
+      span.className = 'char hidden';
+      span.textContent = ch === ' ' ? '\u00A0' : ch;
+      container.appendChild(span);
+      chars.push(span);
+    }
+  }
+
+  function fadeIn(cb) {
+    chars.forEach((c) => {
+      c.className = 'char appear';
+      c.style.transform = '';
+    });
+    setTimeout(cb, 1000);
+  }
+
+  function dissolve(cb) {
+    chars.forEach((c, i) => {
+      const tx = (Math.random() - 0.5) * scatterDist * 2;
+      const ty = (Math.random() - 0.5) * scatterDist;
+      const rot = (Math.random() - 0.5) * rotationMax;
+      c.style.transition = `transform ${duration}s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity ${duration}s ease-out`;
+      c.style.transitionDelay = `${i * 12}ms`;
+      c.style.transform =
+        `translate(${tx}px, ${ty}px) rotate(${rot}deg)`;
+      c.className = 'char dissolve';
+    });
+    setTimeout(cb, duration * 1000 + chars.length * 12 + 500);
+  }
+
+  function reset() {
+    chars.forEach((c) => {
+      c.style.transitionDelay = '0ms';
+      c.className = 'char hidden';
+      c.style.transform = '';
+    });
+  }
+
+  function cycle() {
+    if (!visiblePanels.has('panel1')) {
+      setTimeout(cycle, 500);
+      return;
+    }
+    reset();
+    requestAnimationFrame(() => {
+      fadeIn(() => {
+        setTimeout(() => {
+          dissolve(() => {
+            setTimeout(cycle, 1000);
+          });
+        }, 2000);
+      });
+    });
+  }
+
+  buildChars();
+  cycle();
+
+  // Replay button
+  document.querySelector('[data-effect="1"]').addEventListener('click', () => {
+    readSliders();
+    reset();
+    setTimeout(() => {
+      fadeIn(() => {
+        setTimeout(() => dissolve(() => {}), 2000);
+      });
+    }, 50);
+  });
+
+  // Slider listeners
+  document.querySelectorAll('#controls1 input').forEach((inp) => {
+    inp.addEventListener('input', () => {
+      readSliders();
+      reset();
+      setTimeout(() => {
+        fadeIn(() => {
+          setTimeout(() => dissolve(() => {}), 2000);
+        });
+      }, 50);
+    });
+  });
+})();
+
+// ============================================================
+//  EFFECT 2: CSS Clip-Path Grid
+// ============================================================
+(function effect2() {
+  const container = document.getElementById('grid-container');
+  const area = document.getElementById('area2');
+  let cols = 14;
+  let rows = 7;
+  let driftDist = 150;
+  let cells = [];
+
+  function readSliders() {
+    cols = parseInt(document.getElementById('e2-cols').value);
+    rows = parseInt(document.getElementById('e2-rows').value);
+    driftDist = parseFloat(document.getElementById('e2-drift').value);
+    document.getElementById('e2-cols-val').textContent = cols;
+    document.getElementById('e2-rows-val').textContent = rows;
+    document.getElementById('e2-drift-val').textContent = driftDist;
+  }
+
+  function buildGrid() {
+    container.innerHTML = '';
+    cells = [];
+
+    const cw = 700;
+    const ch = 200;
+
+    const cellW = cw / cols;
+    const cellH = ch / rows;
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const cell = document.createElement('div');
+        cell.className = 'grid-cell hidden';
+        cell.style.left = `${c * cellW}px`;
+        cell.style.top = `${r * cellH}px`;
+        cell.style.width = `${cellW}px`;
+        cell.style.height = `${cellH}px`;
+
+        const inner = document.createElement('div');
+        inner.className = 'grid-cell-inner';
+        inner.textContent = SAMPLE_TEXT;
+        inner.style.left = `${-c * cellW}px`;
+        inner.style.top = `${-r * cellH}px`;
+        inner.style.width = `${cw}px`;
+        inner.style.padding = '20px 0';
+
+        cell.appendChild(inner);
+        container.appendChild(cell);
+        cells.push(cell);
+      }
+    }
+  }
+
+  function fadeIn(cb) {
+    cells.forEach((c) => {
+      c.className = 'grid-cell appear';
+      c.style.transform = '';
+    });
+    setTimeout(cb, 1000);
+  }
+
+  function dissolve(cb) {
+    cells.forEach((c, i) => {
+      const tx = (Math.random() - 0.5) * driftDist * 2;
+      const ty = (Math.random() - 0.5) * driftDist + 40;
+      const rot = (Math.random() - 0.5) * 45;
+      const delay = Math.random() * 600;
+      c.style.transitionDelay = `${delay}ms`;
+      c.style.transform =
+        `translate(${tx}px, ${ty}px) rotate(${rot}deg)`;
+      c.className = 'grid-cell dissolve';
+    });
+    setTimeout(cb, 3000);
+  }
+
+  function reset() {
+    cells.forEach((c) => {
+      c.style.transitionDelay = '0ms';
+      c.className = 'grid-cell hidden';
+      c.style.transform = '';
+    });
+  }
+
+  function restart() {
+    readSliders();
+    buildGrid();
+    reset();
+    setTimeout(() => {
+      fadeIn(() => {
+        setTimeout(() => dissolve(() => {}), 2000);
+      });
+    }, 50);
+  }
+
+  function cycle() {
+    if (!visiblePanels.has('panel2')) {
+      setTimeout(cycle, 500);
+      return;
+    }
+    reset();
+    requestAnimationFrame(() => {
+      fadeIn(() => {
+        setTimeout(() => {
+          dissolve(() => {
+            setTimeout(cycle, 1000);
+          });
+        }, 2000);
+      });
+    });
+  }
+
+  buildGrid();
+  cycle();
+
+  document.querySelector('[data-effect="2"]').addEventListener('click', () => {
+    restart();
+  });
+
+  document.querySelectorAll('#controls2 input').forEach((inp) => {
+    inp.addEventListener('input', () => { restart(); });
+  });
+})();
+
+// ============================================================
+//  CANVAS HELPERS — shared by effects 3, 4, 5
+// ============================================================
+
+/**
+ * Render text onto an offscreen canvas and return an array of
+ * {x, y} positions where text pixels exist.
+ */
+function sampleTextPixels(text, width, height, fontSize, fontFamily) {
+  const off = document.createElement('canvas');
+  off.width = width;
+  off.height = height;
+  const ctx = off.getContext('2d');
+
+  ctx.fillStyle = '#e0e0e0';
+  ctx.font = `${fontSize}px ${fontFamily}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+
+  // Word-wrap text
+  const words = text.split(' ');
+  const lines = [];
+  let line = '';
+  const maxW = width - 80;
+  for (const w of words) {
+    const test = line ? line + ' ' + w : w;
+    if (ctx.measureText(test).width > maxW && line) {
+      lines.push(line);
+      line = w;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+
+  const lineHeight = fontSize * 1.8;
+  const totalH = lines.length * lineHeight;
+  const startY = (height - totalH) / 2;
+
+  lines.forEach((l, i) => {
+    ctx.fillText(l, width / 2, startY + i * lineHeight);
+  });
+
+  // Sample pixels
+  const data = ctx.getImageData(0, 0, width, height).data;
+  const points = [];
+  const step = 3; // sample every 3rd pixel for performance
+  for (let y = 0; y < height; y += step) {
+    for (let x = 0; x < width; x += step) {
+      const idx = (y * width + x) * 4;
+      if (data[idx + 3] > 128) {
+        points.push({ x, y });
+      }
+    }
+  }
+  return points;
+}
+
+// ============================================================
+//  EFFECT 3: Canvas Pixel Sampling — Basic
+// ============================================================
+(function effect3() {
+  const canvas = document.getElementById('canvas3');
+  const area = document.getElementById('area3');
+  let ctx, W, H, particles, phase, phaseTime, animId;
+
+  // Slider-controlled parameters
+  let gravity = 40;
+  let countMult = 1;
+  let particleSize = 1.5;
+
+  function readSliders() {
+    gravity = parseFloat(document.getElementById('e3-gravity').value);
+    countMult = parseFloat(document.getElementById('e3-count').value);
+    particleSize = parseFloat(document.getElementById('e3-size').value);
+    document.getElementById('e3-gravity-val').textContent = gravity;
+    document.getElementById('e3-count-val').textContent = countMult;
+    document.getElementById('e3-size-val').textContent = particleSize;
+  }
+
+  function resize() {
+    const rect = area.getBoundingClientRect();
+    W = canvas.width = rect.width * devicePixelRatio;
+    H = canvas.height = rect.height * devicePixelRatio;
+    canvas.style.width = rect.width + 'px';
+    canvas.style.height = rect.height + 'px';
+    ctx = canvas.getContext('2d');
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+  }
+
+  function initParticles() {
+    const rect = area.getBoundingClientRect();
+    const step = Math.max(1, Math.round(3 / countMult));
+    const off = document.createElement('canvas');
+    const w = Math.round(rect.width);
+    const h = Math.round(rect.height);
+    off.width = w; off.height = h;
+    const offCtx = off.getContext('2d');
+    offCtx.fillStyle = '#e0e0e0';
+    offCtx.font = '20px Georgia, serif';
+    offCtx.textAlign = 'center';
+    offCtx.textBaseline = 'top';
+    const words = SAMPLE_TEXT.split(' ');
+    const lines = []; let line = '';
+    const maxW = w - 80;
+    for (const wd of words) {
+      const test = line ? line + ' ' + wd : wd;
+      if (offCtx.measureText(test).width > maxW && line) {
+        lines.push(line); line = wd;
+      } else { line = test; }
+    }
+    if (line) lines.push(line);
+    const lh = 36, totalH = lines.length * lh;
+    const startY = (h - totalH) / 2;
+    lines.forEach((l, i) => offCtx.fillText(l, w / 2, startY + i * lh));
+    const data = offCtx.getImageData(0, 0, w, h).data;
+    const points = [];
+    for (let y = 0; y < h; y += step) {
+      for (let x = 0; x < w; x += step) {
+        const idx = (y * w + x) * 4;
+        if (data[idx + 3] > 128) points.push({ x, y });
+      }
+    }
+    particles = points.map((p) => ({
+      ox: p.x, oy: p.y,
+      x: p.x, y: p.y,
+      vx: 0, vy: 0,
+      alpha: 1,
+      size: particleSize,
+    }));
+  }
+
+  // Draw text directly (for fade-in / hold phases)
+  function drawText(alpha) {
+    const rect = area.getBoundingClientRect();
+    const w = rect.width;
+    const h = rect.height;
+    ctx.clearRect(0, 0, w, h);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#e0e0e0';
+    ctx.font = '20px Georgia, serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+
+    const words = SAMPLE_TEXT.split(' ');
+    const lines = [];
+    let line = '';
+    const maxW = w - 80;
+    for (const wd of words) {
+      const test = line ? line + ' ' + wd : wd;
+      if (ctx.measureText(test).width > maxW && line) {
+        lines.push(line);
+        line = wd;
+      } else {
+        line = test;
+      }
+    }
+    if (line) lines.push(line);
+
+    const lh = 36;
+    const totalH = lines.length * lh;
+    const startY = (h - totalH) / 2;
+    lines.forEach((l, i) => ctx.fillText(l, w / 2, startY + i * lh));
+    ctx.restore();
+  }
+
+  function updateParticles(dt) {
+    const rect = area.getBoundingClientRect();
+    ctx.clearRect(0, 0, rect.width, rect.height);
+    for (const p of particles) {
+      // Gravity + slight random drift
+      p.vy += gravity * 1.5 * dt;
+      p.vx += (Math.random() - 0.5) * 10 * dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.alpha -= 0.3 * dt;
+      if (p.alpha < 0) p.alpha = 0;
+
+      ctx.fillStyle = `rgba(224,224,224,${p.alpha})`;
+      ctx.fillRect(p.x, p.y, p.size, p.size);
+    }
+  }
+
+  let lastTime = 0;
+  function startCycle() {
+    phase = PHASE_FADE_IN;
+    phaseTime = 0;
+    lastTime = performance.now();
+    resize();
+    initParticles();
+    loop();
+  }
+
+  function loop() {
+    if (!visiblePanels.has('panel3')) {
+      animId = requestAnimationFrame(loop);
+      return;
+    }
+    const now = performance.now();
+    const dt = Math.min((now - lastTime) / 1000, 0.05);
+    lastTime = now;
+    phaseTime += dt;
+
+    switch (phase) {
+      case PHASE_FADE_IN:
+        drawText(Math.min(phaseTime / 1.0, 1));
+        if (phaseTime >= 1.0) { phase = PHASE_HOLD; phaseTime = 0; }
+        break;
+      case PHASE_HOLD:
+        drawText(1);
+        if (phaseTime >= 2.0) {
+          phase = PHASE_DISSOLVE; phaseTime = 0;
+          // Reset particles to origin
+          particles.forEach((p) => {
+            p.x = p.ox; p.y = p.oy;
+            p.vx = 0; p.vy = 0;
+            p.alpha = 1;
+          });
+        }
+        break;
+      case PHASE_DISSOLVE:
+        updateParticles(dt);
+        if (phaseTime >= 3.0) { phase = PHASE_PAUSE; phaseTime = 0; }
+        break;
+      case PHASE_PAUSE:
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (phaseTime >= 1.0) {
+          phase = PHASE_FADE_IN; phaseTime = 0;
+          resize();
+          initParticles();
+        }
+        break;
+    }
+    animId = requestAnimationFrame(loop);
+  }
+
+  startCycle();
+
+  document.querySelector('[data-effect="3"]').addEventListener('click', () => {
+    readSliders();
+    cancelAnimationFrame(animId);
+    startCycle();
+  });
+
+  document.querySelectorAll('#controls3 input').forEach((inp) => {
+    inp.addEventListener('input', () => {
+      readSliders();
+      cancelAnimationFrame(animId);
+      startCycle();
+    });
+  });
+})();
+
+// ============================================================
+//  EFFECT 4: Canvas Pixel Sampling — Wind & Turbulence
+// ============================================================
+(function effect4() {
+  const canvas = document.getElementById('canvas4');
+  const area = document.getElementById('area4');
+  let ctx, W, H, particles, phase, phaseTime, animId;
+
+  // Slider-controlled parameters
+  let windStr = -0.6;
+  let turbAmp = 15;
+  let glowInt = 2.5;
+  let pSize = 2;
+
+  function readSliders() {
+    windStr = parseFloat(document.getElementById('e4-wind').value);
+    turbAmp = parseFloat(document.getElementById('e4-turb').value);
+    glowInt = parseFloat(document.getElementById('e4-glow').value);
+    pSize = parseFloat(document.getElementById('e4-size').value);
+    document.getElementById('e4-wind-val').textContent = windStr;
+    document.getElementById('e4-turb-val').textContent = turbAmp;
+    document.getElementById('e4-glow-val').textContent = glowInt;
+    document.getElementById('e4-size-val').textContent = pSize;
+  }
+
+  function resize() {
+    const rect = area.getBoundingClientRect();
+    W = canvas.width = rect.width * devicePixelRatio;
+    H = canvas.height = rect.height * devicePixelRatio;
+    canvas.style.width = rect.width + 'px';
+    canvas.style.height = rect.height + 'px';
+    ctx = canvas.getContext('2d');
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+  }
+
+  function initParticles() {
+    const rect = area.getBoundingClientRect();
+    const points = sampleTextPixels(
+      SAMPLE_TEXT,
+      Math.round(rect.width),
+      Math.round(rect.height),
+      20,
+      'Georgia, serif'
+    );
+    particles = points.map((p) => ({
+      ox: p.x, oy: p.y,
+      x: p.x, y: p.y,
+      vx: 0, vy: 0,
+      alpha: 1,
+      size: pSize * (0.6 + Math.random() * 0.75),
+      turbPhase: Math.random() * Math.PI * 2,
+      turbFreq: 1.5 + Math.random() * 2,
+      speed: 0.7 + Math.random() * 0.6,
+    }));
+  }
+
+  function drawText(alpha) {
+    const rect = area.getBoundingClientRect();
+    const w = rect.width, h = rect.height;
+    ctx.clearRect(0, 0, w, h);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#e0e0e0';
+    ctx.font = '20px Georgia, serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const words = SAMPLE_TEXT.split(' ');
+    const lines = []; let line = '';
+    const maxW = w - 80;
+    for (const wd of words) {
+      const test = line ? line + ' ' + wd : wd;
+      if (ctx.measureText(test).width > maxW && line) {
+        lines.push(line); line = wd;
+      } else { line = test; }
+    }
+    if (line) lines.push(line);
+    const lh = 36, totalH = lines.length * lh;
+    const startY = (h - totalH) / 2;
+    lines.forEach((l, i) => ctx.fillText(l, w / 2, startY + i * lh));
+    ctx.restore();
+  }
+
+  function updateParticles(dt, elapsed) {
+    const rect = area.getBoundingClientRect();
+    const w = rect.width, h = rect.height;
+    ctx.clearRect(0, 0, w, h);
+
+    // windStr: -0.6 default means leftward, scale base=80
+    const windBase = windStr * (80 / -0.6);
+
+    for (const p of particles) {
+      const s = p.speed;
+      // Wind
+      p.vx += windBase * s * dt;
+      // Sine-wave vertical turbulence
+      p.vy +=
+        Math.sin(elapsed * p.turbFreq + p.turbPhase) * turbAmp * 2.67 * s * dt;
+      // Slight gravity
+      p.vy += 15 * dt;
+      // Damping
+      p.vx *= 0.995;
+      p.vy *= 0.995;
+
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.alpha -= 0.28 * dt;
+      p.size *= 0.9995;
+      if (p.alpha < 0) p.alpha = 0;
+
+      // Glow
+      ctx.save();
+      ctx.shadowColor = 'rgba(224,224,224,0.4)';
+      ctx.shadowBlur = glowInt * 1.6;
+      ctx.fillStyle = `rgba(224,224,224,${p.alpha})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  let lastTime = 0;
+  function startCycle() {
+    phase = PHASE_FADE_IN;
+    phaseTime = 0;
+    lastTime = performance.now();
+    resize();
+    initParticles();
+    loop();
+  }
+
+  function loop() {
+    if (!visiblePanels.has('panel4')) {
+      animId = requestAnimationFrame(loop);
+      return;
+    }
+    const now = performance.now();
+    const dt = Math.min((now - lastTime) / 1000, 0.05);
+    lastTime = now;
+    phaseTime += dt;
+
+    switch (phase) {
+      case PHASE_FADE_IN:
+        drawText(Math.min(phaseTime / 1.0, 1));
+        if (phaseTime >= 1.0) { phase = PHASE_HOLD; phaseTime = 0; }
+        break;
+      case PHASE_HOLD:
+        drawText(1);
+        if (phaseTime >= 2.0) {
+          phase = PHASE_DISSOLVE; phaseTime = 0;
+          particles.forEach((p) => {
+            p.x = p.ox; p.y = p.oy;
+            p.vx = 0; p.vy = 0;
+            p.alpha = 1;
+          });
+        }
+        break;
+      case PHASE_DISSOLVE:
+        updateParticles(dt, phaseTime);
+        if (phaseTime >= 3.0) { phase = PHASE_PAUSE; phaseTime = 0; }
+        break;
+      case PHASE_PAUSE: {
+        const rect = area.getBoundingClientRect();
+        ctx.clearRect(0, 0, rect.width, rect.height);
+        if (phaseTime >= 1.0) {
+          phase = PHASE_FADE_IN; phaseTime = 0;
+          resize(); initParticles();
+        }
+        break;
+      }
+    }
+    animId = requestAnimationFrame(loop);
+  }
+
+  startCycle();
+
+  document.querySelector('[data-effect="4"]').addEventListener('click', () => {
+    readSliders();
+    cancelAnimationFrame(animId);
+    startCycle();
+  });
+
+  document.querySelectorAll('#controls4 input').forEach((inp) => {
+    inp.addEventListener('input', () => {
+      readSliders();
+      cancelAnimationFrame(animId);
+      startCycle();
+    });
+  });
+})();
+
+// ============================================================
+//  EFFECT 5: Canvas Pixel Sampling — Full Physics (Cinematic)
+//
+//  Features:
+//  - Wind with gusts (time-varying strength)
+//  - Turbulence via layered noise
+//  - Gravity + air resistance
+//  - Particle trails (previous positions)
+//  - Mid-flight splitting into sub-particles
+//  - Color shift: white → warm amber
+//  - Initial burst outward before wind takes over
+// ============================================================
+(function effect5() {
+  const canvas = document.getElementById('canvas5');
+  const area = document.getElementById('area5');
+  let ctx, W, H;
+  let particles, phase, phaseTime, animId;
+
+  // Slider-controlled parameters
+  let windStr = -0.8;
+  let gustInt = 1;
+  let trailLen = 6;
+  let splitChance = 0.08;
+  let dragCoeff = 0.001;
+
+  function readSliders() {
+    windStr = parseFloat(document.getElementById('e5-wind').value);
+    gustInt = parseFloat(document.getElementById('e5-gust').value);
+    trailLen = parseInt(document.getElementById('e5-trail').value);
+    splitChance = parseFloat(document.getElementById('e5-split').value);
+    dragCoeff = parseFloat(document.getElementById('e5-drag').value);
+    document.getElementById('e5-wind-val').textContent = windStr;
+    document.getElementById('e5-gust-val').textContent = gustInt;
+    document.getElementById('e5-trail-val').textContent = trailLen;
+    document.getElementById('e5-split-val').textContent = splitChance;
+    document.getElementById('e5-drag-val').textContent = dragCoeff;
+  }
+
+  function resize() {
+    const rect = area.getBoundingClientRect();
+    W = Math.round(rect.width);
+    H = Math.round(rect.height);
+    canvas.width = W * devicePixelRatio;
+    canvas.height = H * devicePixelRatio;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx = canvas.getContext('2d');
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+  }
+
+  function initParticles() {
+    const points = sampleTextPixels(SAMPLE_TEXT, W, H, 20, 'Georgia, serif');
+    particles = points.map((p) => ({
+      ox: p.x, oy: p.y,           // origin
+      x: p.x, y: p.y,
+      vx: 0, vy: 0,
+      alpha: 1,
+      size: 1.0 + Math.random() * 1.8,
+      life: 1.0,                   // 1 → 0
+      turbPhase: Math.random() * Math.PI * 2,
+      turbFreq: 1.0 + Math.random() * 2.5,
+      turbAmp: 30 + Math.random() * 50,
+      trail: [],                   // [{x,y,alpha}]
+      canSplit: Math.random() < splitChance,
+      hasSplit: false,
+      isSub: false,
+    }));
+  }
+
+  function drawText(alpha) {
+    ctx.clearRect(0, 0, W, H);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#e0e0e0';
+    ctx.font = '20px Georgia, serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const words = SAMPLE_TEXT.split(' ');
+    const lines = []; let line = '';
+    const maxW = W - 80;
+    for (const wd of words) {
+      const test = line ? line + ' ' + wd : wd;
+      if (ctx.measureText(test).width > maxW && line) {
+        lines.push(line); line = wd;
+      } else { line = test; }
+    }
+    if (line) lines.push(line);
+    const lh = 36, totalH = lines.length * lh;
+    const startY = (H - totalH) / 2;
+    lines.forEach((l, i) => ctx.fillText(l, W / 2, startY + i * lh));
+    ctx.restore();
+  }
+
+  /**
+   * Lerp between white (#e0e0e0) and warm amber (#d4a050)
+   * based on particle life (1 = white, 0 = amber).
+   */
+  function particleColor(life, alpha) {
+    const t = 1 - life; // 0 → 1 as life decreases
+    const r = Math.round(224 + (212 - 224) * t);
+    const g = Math.round(224 + (160 - 224) * t);
+    const b = Math.round(224 + (80 - 224) * t);
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+
+  function updateParticles(dt, elapsed) {
+    ctx.clearRect(0, 0, W, H);
+
+    // Wind with gusts — base wind plus sine-driven gusts
+    // windStr=-0.8 means leftward; scale so default matches original 60+40+20
+    const windScale = windStr / -0.8;
+    const gustStrength =
+      60 * windScale +
+      40 * gustInt * Math.sin(elapsed * 0.7) +
+      20 * gustInt * Math.sin(elapsed * 1.9 + 2.0);
+
+    const newParticles = [];
+
+    for (const p of particles) {
+      if (p.alpha <= 0) continue;
+
+      // Store trail point
+      p.trail.push({ x: p.x, y: p.y, alpha: p.alpha * 0.6 });
+      if (p.trail.length > trailLen) p.trail.shift();
+
+      // === Forces ===
+
+      // Initial burst (first 0.3s): radial outward push
+      if (elapsed < 0.4 && !p.isSub) {
+        const cx = W / 2, cy = H / 2;
+        const dx = p.x - cx, dy = p.y - cy;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const burstForce = 200 * (1 - elapsed / 0.4);
+        p.vx += (dx / dist) * burstForce * dt;
+        p.vy += (dy / dist) * burstForce * dt;
+      }
+
+      // Wind (leftward with gusts)
+      p.vx += -gustStrength * dt;
+
+      // Slight upward lift (makes it more ethereal)
+      p.vy -= 10 * dt;
+
+      // Gravity
+      p.vy += 25 * dt;
+
+      // Turbulence — layered sine for organic movement
+      const turb1 = Math.sin(elapsed * p.turbFreq + p.turbPhase);
+      const turb2 = Math.sin(
+        elapsed * p.turbFreq * 0.6 + p.turbPhase * 1.3 + 1.0
+      );
+      p.vy += (turb1 * p.turbAmp + turb2 * p.turbAmp * 0.5) * dt;
+      p.vx += turb2 * p.turbAmp * 0.3 * dt;
+
+      // Air resistance — proportional to velocity squared
+      const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+      if (speed > 0) {
+        const drag = dragCoeff * 2 * speed;
+        p.vx -= (p.vx / speed) * drag;
+        p.vy -= (p.vy / speed) * drag;
+      }
+
+      // Integrate
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+
+      // Life / alpha decay
+      p.life -= 0.3 * dt;
+      p.alpha = Math.max(0, p.life);
+      p.size *= 0.999;
+
+      // Mid-flight splitting
+      if (
+        p.canSplit && !p.hasSplit && !p.isSub &&
+        elapsed > 0.8 && p.life > 0.3
+      ) {
+        p.hasSplit = true;
+        for (let i = 0; i < 3; i++) {
+          newParticles.push({
+            ox: p.x, oy: p.y,
+            x: p.x, y: p.y,
+            vx: p.vx + (Math.random() - 0.5) * 80,
+            vy: p.vy + (Math.random() - 0.5) * 80,
+            alpha: p.alpha * 0.7,
+            size: p.size * 0.5,
+            life: p.life * 0.6,
+            turbPhase: Math.random() * Math.PI * 2,
+            turbFreq: 2 + Math.random() * 3,
+            turbAmp: 20 + Math.random() * 30,
+            trail: [],
+            canSplit: false,
+            hasSplit: false,
+            isSub: true,
+          });
+        }
+      }
+
+      // === Draw trail ===
+      for (let i = 0; i < p.trail.length; i++) {
+        const t = p.trail[i];
+        const trailAlpha = t.alpha * (i / p.trail.length) * 0.35;
+        if (trailAlpha < 0.01) continue;
+        const trailSize = p.size * (0.3 + 0.7 * (i / p.trail.length));
+        ctx.fillStyle = particleColor(p.life, trailAlpha);
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, trailSize, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // === Draw particle with glow ===
+      ctx.save();
+      ctx.shadowColor = particleColor(p.life, 0.5);
+      ctx.shadowBlur = 6;
+      ctx.fillStyle = particleColor(p.life, p.alpha);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Add split children
+    if (newParticles.length > 0) {
+      particles.push(...newParticles);
+    }
+  }
+
+  let lastTime = 0;
+  function startCycle() {
+    phase = PHASE_FADE_IN;
+    phaseTime = 0;
+    lastTime = performance.now();
+    resize();
+    initParticles();
+    loop();
+  }
+
+  function loop() {
+    if (!visiblePanels.has('panel5')) {
+      animId = requestAnimationFrame(loop);
+      return;
+    }
+    const now = performance.now();
+    const dt = Math.min((now - lastTime) / 1000, 0.05);
+    lastTime = now;
+    phaseTime += dt;
+
+    switch (phase) {
+      case PHASE_FADE_IN:
+        drawText(Math.min(phaseTime / 1.0, 1));
+        if (phaseTime >= 1.0) { phase = PHASE_HOLD; phaseTime = 0; }
+        break;
+      case PHASE_HOLD:
+        drawText(1);
+        if (phaseTime >= 2.0) {
+          phase = PHASE_DISSOLVE; phaseTime = 0;
+          particles.forEach((p) => {
+            p.x = p.ox; p.y = p.oy;
+            p.vx = 0; p.vy = 0;
+            p.alpha = 1; p.life = 1;
+            p.trail = [];
+            p.hasSplit = false;
+          });
+        }
+        break;
+      case PHASE_DISSOLVE:
+        updateParticles(dt, phaseTime);
+        if (phaseTime >= 3.5) { phase = PHASE_PAUSE; phaseTime = 0; }
+        break;
+      case PHASE_PAUSE:
+        ctx.clearRect(0, 0, W, H);
+        if (phaseTime >= 1.0) {
+          phase = PHASE_FADE_IN; phaseTime = 0;
+          resize(); initParticles();
+        }
+        break;
+    }
+    animId = requestAnimationFrame(loop);
+  }
+
+  startCycle();
+
+  document.querySelector('[data-effect="5"]').addEventListener('click', () => {
+    readSliders();
+    cancelAnimationFrame(animId);
+    startCycle();
+  });
+
+  document.querySelectorAll('#controls5 input').forEach((inp) => {
+    inp.addEventListener('input', () => {
+      readSliders();
+      cancelAnimationFrame(animId);
+      startCycle();
+    });
+  });
+})();
+
+// ============================================================
+//  EFFECT 6: Dust — Micro Particles
+//
+//  Very fine matte particles (0.5-1.5px), earth-tone colors,
+//  no glow/shadowBlur, gentle wind and subtle turbulence.
+// ============================================================
+(function effect6() {
+  const canvas = document.getElementById('canvas6');
+  const area = document.getElementById('area6');
+  let ctx, W, H, particles, phase, phaseTime, animId;
+
+  // Slider-controlled parameters
+  let windStr = -0.4;
+  let sizeMax = 1.5;
+  let density = 2;
+
+  function readSliders() {
+    windStr = parseFloat(document.getElementById('e6-wind').value);
+    sizeMax = parseFloat(document.getElementById('e6-size').value);
+    density = parseFloat(document.getElementById('e6-density').value);
+    document.getElementById('e6-wind-val').textContent = windStr;
+    document.getElementById('e6-size-val').textContent = sizeMax;
+    document.getElementById('e6-density-val').textContent = density;
+  }
+
+  function resize() {
+    const rect = area.getBoundingClientRect();
+    W = Math.round(rect.width);
+    H = Math.round(rect.height);
+    canvas.width = W * devicePixelRatio;
+    canvas.height = H * devicePixelRatio;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx = canvas.getContext('2d');
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+  }
+
+  function initParticles() {
+    // density controls sample step: higher density = smaller step
+    const step = Math.max(1, Math.round(2 / (density / 2)));
+    const off = document.createElement('canvas');
+    off.width = W; off.height = H;
+    const offCtx = off.getContext('2d');
+    offCtx.fillStyle = '#e0e0e0';
+    offCtx.font = '20px Georgia, serif';
+    offCtx.textAlign = 'center';
+    offCtx.textBaseline = 'top';
+    const words = SAMPLE_TEXT.split(' ');
+    const lines = []; let line = '';
+    const maxW = W - 80;
+    for (const wd of words) {
+      const test = line ? line + ' ' + wd : wd;
+      if (offCtx.measureText(test).width > maxW && line) {
+        lines.push(line); line = wd;
+      } else { line = test; }
+    }
+    if (line) lines.push(line);
+    const lh = 36, totalH = lines.length * lh;
+    const startY = (H - totalH) / 2;
+    lines.forEach((l, i) => offCtx.fillText(l, W / 2, startY + i * lh));
+    const data = offCtx.getImageData(0, 0, W, H).data;
+    const points = [];
+    for (let y = 0; y < H; y += step) {
+      for (let x = 0; x < W; x += step) {
+        const idx = (y * W + x) * 4;
+        if (data[idx + 3] > 128) points.push({ x, y });
+      }
+    }
+    particles = points.map((p) => {
+      const col = randomDustColor();
+      return {
+        ox: p.x, oy: p.y,
+        x: p.x, y: p.y,
+        vx: 0, vy: 0,
+        alpha: 0.3 + Math.random() * 0.5,
+        maxAlpha: 0.3 + Math.random() * 0.5,
+        size: (sizeMax - 0.5) * Math.random() + 0.5,
+        r: col.r, g: col.g, b: col.b,
+        turbPhase: Math.random() * Math.PI * 2,
+        turbFreq: 1.0 + Math.random() * 1.5,
+        weight: 0.5 + Math.random() * 1.0,
+      };
+    });
+  }
+
+  function updateParticles(dt, elapsed) {
+    ctx.clearRect(0, 0, W, H);
+    // windStr: -0.4 default. Original wind was +30 (rightward).
+    // Map so -0.4 => +30 (rightward), negative slider = rightward wind for this effect
+    const windForce = windStr * (30 / -0.4);
+    for (const p of particles) {
+      if (p.alpha <= 0) continue;
+
+      // Wind
+      p.vx += windForce * p.weight * dt;
+      // Subtle turbulence
+      p.vy += Math.sin(elapsed * p.turbFreq + p.turbPhase) *
+              15 * dt;
+      p.vx += Math.cos(elapsed * p.turbFreq * 0.7 + p.turbPhase) *
+              8 * dt;
+      // Light gravity
+      p.vy += 12 * p.weight * dt;
+      // Air resistance
+      p.vx *= 0.997;
+      p.vy *= 0.997;
+
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.alpha -= 0.22 * dt;
+      if (p.alpha < 0) p.alpha = 0;
+
+      // Matte particle — no glow
+      ctx.fillStyle =
+        `rgba(${p.r},${p.g},${p.b},${p.alpha})`;
+      ctx.fillRect(
+        p.x - p.size * 0.5,
+        p.y - p.size * 0.5,
+        p.size,
+        p.size
+      );
+    }
+  }
+
+  let lastTime = 0;
+  function startCycle() {
+    phase = PHASE_FADE_IN; phaseTime = 0;
+    lastTime = performance.now();
+    resize(); initParticles(); loop();
+  }
+
+  function loop() {
+    if (!visiblePanels.has('panel6')) {
+      animId = requestAnimationFrame(loop); return;
+    }
+    const now = performance.now();
+    const dt = Math.min((now - lastTime) / 1000, 0.05);
+    lastTime = now; phaseTime += dt;
+
+    switch (phase) {
+      case PHASE_FADE_IN:
+        drawWrappedText(ctx, SAMPLE_TEXT, W, H,
+          Math.min(phaseTime / 1.0, 1));
+        if (phaseTime >= 1.0) { phase = PHASE_HOLD; phaseTime = 0; }
+        break;
+      case PHASE_HOLD:
+        drawWrappedText(ctx, SAMPLE_TEXT, W, H, 1);
+        if (phaseTime >= 2.0) {
+          phase = PHASE_DISSOLVE; phaseTime = 0;
+          particles.forEach((p) => {
+            p.x = p.ox; p.y = p.oy;
+            p.vx = 0; p.vy = 0;
+            p.alpha = p.maxAlpha;
+          });
+        }
+        break;
+      case PHASE_DISSOLVE:
+        updateParticles(dt, phaseTime);
+        if (phaseTime >= 3.5) { phase = PHASE_PAUSE; phaseTime = 0; }
+        break;
+      case PHASE_PAUSE:
+        ctx.clearRect(0, 0, W, H);
+        if (phaseTime >= 1.0) {
+          phase = PHASE_FADE_IN; phaseTime = 0;
+          resize(); initParticles();
+        }
+        break;
+    }
+    animId = requestAnimationFrame(loop);
+  }
+
+  startCycle();
+  document.querySelector('[data-effect="6"]').addEventListener('click', () => {
+    readSliders();
+    cancelAnimationFrame(animId); startCycle();
+  });
+
+  document.querySelectorAll('#controls6 input').forEach((inp) => {
+    inp.addEventListener('input', () => {
+      readSliders();
+      cancelAnimationFrame(animId); startCycle();
+    });
+  });
+})();
+
+// ============================================================
+//  EFFECT 7: Dust — Plumes & Clusters
+//
+//  Particles grouped into plume clusters sharing a base
+//  velocity. Plumes curl using layered sine noise.
+//  Air resistance slows particles exponentially.
+// ============================================================
+(function effect7() {
+  const canvas = document.getElementById('canvas7');
+  const area = document.getElementById('area7');
+  let ctx, W, H, particles, plumes, phase, phaseTime, animId;
+
+  // Slider-controlled parameters
+  let plumeSize = 15;
+  let curlFreq = 2;
+  let airRes = 0.97;
+
+  function readSliders() {
+    plumeSize = parseInt(document.getElementById('e7-plume').value);
+    curlFreq = parseFloat(document.getElementById('e7-curl').value);
+    airRes = parseFloat(document.getElementById('e7-air').value);
+    document.getElementById('e7-plume-val').textContent = plumeSize;
+    document.getElementById('e7-curl-val').textContent = curlFreq;
+    document.getElementById('e7-air-val').textContent = airRes;
+  }
+
+  function resize() {
+    const rect = area.getBoundingClientRect();
+    W = Math.round(rect.width);
+    H = Math.round(rect.height);
+    canvas.width = W * devicePixelRatio;
+    canvas.height = H * devicePixelRatio;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx = canvas.getContext('2d');
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+  }
+
+  function initParticles() {
+    const points = sampleTextPixelsFine(
+      SAMPLE_TEXT, W, H, 20, 'Georgia, serif'
+    );
+
+    // Create plumes — clusters of nearby particles
+    plumes = [];
+    const shuffled = points.slice().sort(() => Math.random() - 0.5);
+
+    for (let i = 0; i < shuffled.length; i += plumeSize) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 30 + Math.random() * 60;
+      const vDir = Math.random();
+      let baseVx = Math.cos(angle) * speed;
+      let baseVy;
+      if (vDir < 0.3) baseVy = -(20 + Math.random() * 40);
+      else if (vDir < 0.6) baseVy = (Math.random() - 0.5) * 30;
+      else baseVy = 20 + Math.random() * 30;
+
+      plumes.push({
+        baseVx, baseVy,
+        curlPhase: Math.random() * Math.PI * 2,
+        curlFreq: curlFreq * (0.4 + Math.random() * 0.75),
+        curlAmp: 20 + Math.random() * 40,
+      });
+    }
+
+    particles = shuffled.map((p, i) => {
+      const col = randomDustColor();
+      const plumeIdx = Math.floor(i / plumeSize);
+      return {
+        ox: p.x, oy: p.y,
+        x: p.x, y: p.y,
+        vx: 0, vy: 0,
+        alpha: 0.35 + Math.random() * 0.45,
+        maxAlpha: 0.35 + Math.random() * 0.45,
+        size: 0.4 + Math.random() * 1.1,
+        r: col.r, g: col.g, b: col.b,
+        plumeIdx: Math.min(plumeIdx, plumes.length - 1),
+        // Individual variation within plume
+        driftVx: (Math.random() - 0.5) * 15,
+        driftVy: (Math.random() - 0.5) * 15,
+        weight: 0.6 + Math.random() * 0.8,
+      };
+    });
+  }
+
+  function updateParticles(dt, elapsed) {
+    ctx.clearRect(0, 0, W, H);
+
+    for (const p of particles) {
+      if (p.alpha <= 0) continue;
+
+      const plume = plumes[p.plumeIdx];
+
+      // Plume base direction + curl
+      const curl = Math.sin(
+        elapsed * plume.curlFreq + plume.curlPhase
+      ) * plume.curlAmp;
+      const curl2 = Math.cos(
+        elapsed * plume.curlFreq * 0.6 + plume.curlPhase * 1.7
+      ) * plume.curlAmp * 0.5;
+
+      p.vx += (plume.baseVx + p.driftVx + curl2) * dt;
+      p.vy += (plume.baseVy + p.driftVy + curl) * dt;
+
+      // Light gravity
+      p.vy += 8 * p.weight * dt;
+
+      // Exponential air resistance — key to realistic slowdown
+      const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+      // airRes=0.97 maps to original drag factor of 0.03
+      const dragFactor = 1 - airRes;
+      const drag = 1 - Math.min(dragFactor * speed * dt, 0.5);
+      p.vx *= drag;
+      p.vy *= drag;
+
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.alpha -= 0.18 * dt;
+      if (p.alpha < 0) p.alpha = 0;
+
+      ctx.fillStyle =
+        `rgba(${p.r},${p.g},${p.b},${p.alpha})`;
+      ctx.fillRect(
+        p.x - p.size * 0.5,
+        p.y - p.size * 0.5,
+        p.size,
+        p.size
+      );
+    }
+  }
+
+  let lastTime = 0;
+  function startCycle() {
+    phase = PHASE_FADE_IN; phaseTime = 0;
+    lastTime = performance.now();
+    resize(); initParticles(); loop();
+  }
+
+  function loop() {
+    if (!visiblePanels.has('panel7')) {
+      animId = requestAnimationFrame(loop); return;
+    }
+    const now = performance.now();
+    const dt = Math.min((now - lastTime) / 1000, 0.05);
+    lastTime = now; phaseTime += dt;
+
+    switch (phase) {
+      case PHASE_FADE_IN:
+        drawWrappedText(ctx, SAMPLE_TEXT, W, H,
+          Math.min(phaseTime / 1.0, 1));
+        if (phaseTime >= 1.0) { phase = PHASE_HOLD; phaseTime = 0; }
+        break;
+      case PHASE_HOLD:
+        drawWrappedText(ctx, SAMPLE_TEXT, W, H, 1);
+        if (phaseTime >= 2.0) {
+          phase = PHASE_DISSOLVE; phaseTime = 0;
+          particles.forEach((p) => {
+            p.x = p.ox; p.y = p.oy;
+            p.vx = 0; p.vy = 0;
+            p.alpha = p.maxAlpha;
+          });
+        }
+        break;
+      case PHASE_DISSOLVE:
+        updateParticles(dt, phaseTime);
+        if (phaseTime >= 4.0) { phase = PHASE_PAUSE; phaseTime = 0; }
+        break;
+      case PHASE_PAUSE:
+        ctx.clearRect(0, 0, W, H);
+        if (phaseTime >= 1.0) {
+          phase = PHASE_FADE_IN; phaseTime = 0;
+          resize(); initParticles();
+        }
+        break;
+    }
+    animId = requestAnimationFrame(loop);
+  }
+
+  startCycle();
+  document.querySelector('[data-effect="7"]').addEventListener('click', () => {
+    readSliders();
+    cancelAnimationFrame(animId); startCycle();
+  });
+
+  document.querySelectorAll('#controls7 input').forEach((inp) => {
+    inp.addEventListener('input', () => {
+      readSliders();
+      cancelAnimationFrame(animId); startCycle();
+    });
+  });
+})();
+
+// ============================================================
+//  EFFECT 8: Dust — Gravity Cascade
+//
+//  Strong gravity, weak wind — particles tumble and fall
+//  like sand. Accumulate briefly at ground before fading.
+//  Warmer amber/ochre tones.
+// ============================================================
+(function effect8() {
+  const canvas = document.getElementById('canvas8');
+  const area = document.getElementById('area8');
+  let ctx, W, H, particles, phase, phaseTime, animId;
+
+  // Slider-controlled parameters
+  let gravity = 60;
+  let bounceProb = 0.3;
+  let tumbleInt = 10;
+
+  function readSliders() {
+    gravity = parseFloat(document.getElementById('e8-gravity').value);
+    bounceProb = parseFloat(document.getElementById('e8-bounce').value);
+    tumbleInt = parseFloat(document.getElementById('e8-tumble').value);
+    document.getElementById('e8-gravity-val').textContent = gravity;
+    document.getElementById('e8-bounce-val').textContent = bounceProb;
+    document.getElementById('e8-tumble-val').textContent = tumbleInt;
+  }
+
+  const WARM_COLORS = [
+    { r: 212, g: 168, b: 100 }, // amber
+    { r: 198, g: 156, b: 88 },  // ochre
+    { r: 180, g: 144, b: 80 },  // dark sand
+    { r: 168, g: 140, b: 100 }, // warm brown
+    { r: 200, g: 180, b: 140 }, // pale ochre
+    { r: 160, g: 136, b: 100 }, // earth
+    { r: 190, g: 170, b: 130 }, // clay
+  ];
+
+  function resize() {
+    const rect = area.getBoundingClientRect();
+    W = Math.round(rect.width);
+    H = Math.round(rect.height);
+    canvas.width = W * devicePixelRatio;
+    canvas.height = H * devicePixelRatio;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx = canvas.getContext('2d');
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+  }
+
+  function initParticles() {
+    const points = sampleTextPixelsFine(
+      SAMPLE_TEXT, W, H, 20, 'Georgia, serif'
+    );
+    particles = points.map((p) => {
+      const col = WARM_COLORS[
+        Math.floor(Math.random() * WARM_COLORS.length)
+      ];
+      return {
+        ox: p.x, oy: p.y,
+        x: p.x, y: p.y,
+        vx: 0, vy: 0,
+        alpha: 0.4 + Math.random() * 0.4,
+        maxAlpha: 0.4 + Math.random() * 0.4,
+        size: 0.4 + Math.random() * 1.1,
+        r: col.r, g: col.g, b: col.b,
+        weight: 0.6 + Math.random() * 1.0,
+        tumble: (Math.random() - 0.5) * 3,
+        grounded: false,
+        groundTime: 0,
+        bounced: false,
+      };
+    });
+  }
+
+  function updateParticles(dt) {
+    ctx.clearRect(0, 0, W, H);
+    const groundY = H - 8;
+
+    for (const p of particles) {
+      if (p.alpha <= 0) continue;
+
+      if (p.grounded) {
+        // Grounded particles fade out
+        p.groundTime += dt;
+        p.alpha -= 0.5 * dt;
+        if (p.alpha < 0) p.alpha = 0;
+        ctx.fillStyle =
+          `rgba(${p.r},${p.g},${p.b},${p.alpha})`;
+        ctx.fillRect(
+          p.x - p.size * 0.5,
+          p.y - p.size * 0.5,
+          p.size,
+          p.size
+        );
+        continue;
+      }
+
+      // Strong gravity
+      p.vy += gravity * 2 * p.weight * dt;
+      // Tumble drift (sideways wobble)
+      p.vx += Math.sin(p.y * 0.05 + p.tumble) * tumbleInt * 2.5 * dt;
+      // Very weak wind
+      p.vx += 5 * dt;
+      // Light air resistance
+      p.vx *= 0.998;
+      p.vy *= 0.999;
+
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+
+      // Ground collision
+      if (p.y >= groundY) {
+        if (!p.bounced && Math.random() < bounceProb) {
+          // Bounce
+          p.bounced = true;
+          p.vy = -p.vy * (0.15 + Math.random() * 0.15);
+          p.vx *= 0.5;
+          p.y = groundY;
+        } else {
+          // Settle
+          p.y = groundY - Math.random() * 3;
+          p.vx = 0; p.vy = 0;
+          p.grounded = true;
+        }
+      }
+
+      // Fade slightly while falling
+      p.alpha -= 0.08 * dt;
+      if (p.alpha < 0) p.alpha = 0;
+
+      ctx.fillStyle =
+        `rgba(${p.r},${p.g},${p.b},${p.alpha})`;
+      ctx.fillRect(
+        p.x - p.size * 0.5,
+        p.y - p.size * 0.5,
+        p.size,
+        p.size
+      );
+    }
+  }
+
+  let lastTime = 0;
+  function startCycle() {
+    phase = PHASE_FADE_IN; phaseTime = 0;
+    lastTime = performance.now();
+    resize(); initParticles(); loop();
+  }
+
+  function loop() {
+    if (!visiblePanels.has('panel8')) {
+      animId = requestAnimationFrame(loop); return;
+    }
+    const now = performance.now();
+    const dt = Math.min((now - lastTime) / 1000, 0.05);
+    lastTime = now; phaseTime += dt;
+
+    switch (phase) {
+      case PHASE_FADE_IN:
+        drawWrappedText(ctx, SAMPLE_TEXT, W, H,
+          Math.min(phaseTime / 1.0, 1));
+        if (phaseTime >= 1.0) { phase = PHASE_HOLD; phaseTime = 0; }
+        break;
+      case PHASE_HOLD:
+        drawWrappedText(ctx, SAMPLE_TEXT, W, H, 1);
+        if (phaseTime >= 2.0) {
+          phase = PHASE_DISSOLVE; phaseTime = 0;
+          particles.forEach((p) => {
+            p.x = p.ox; p.y = p.oy;
+            p.vx = 0; p.vy = 0;
+            p.alpha = p.maxAlpha;
+            p.grounded = false;
+            p.groundTime = 0;
+            p.bounced = false;
+          });
+        }
+        break;
+      case PHASE_DISSOLVE:
+        updateParticles(dt);
+        if (phaseTime >= 4.0) { phase = PHASE_PAUSE; phaseTime = 0; }
+        break;
+      case PHASE_PAUSE:
+        ctx.clearRect(0, 0, W, H);
+        if (phaseTime >= 1.0) {
+          phase = PHASE_FADE_IN; phaseTime = 0;
+          resize(); initParticles();
+        }
+        break;
+    }
+    animId = requestAnimationFrame(loop);
+  }
+
+  startCycle();
+  document.querySelector('[data-effect="8"]').addEventListener('click', () => {
+    readSliders();
+    cancelAnimationFrame(animId); startCycle();
+  });
+
+  document.querySelectorAll('#controls8 input').forEach((inp) => {
+    inp.addEventListener('input', () => {
+      readSliders();
+      cancelAnimationFrame(animId); startCycle();
+    });
+  });
+})();
+
+// ============================================================
+//  EFFECT 9: Dust — Breath of Wind
+//
+//  Cinematic wind dissolution. Starts slow, then gusts.
+//  Coherent streamlines, motion blur, layered particle weight.
+//  Distance-based fade. The most realistic dust effect.
+// ============================================================
+(function effect9() {
+  const canvas = document.getElementById('canvas9');
+  const area = document.getElementById('area9');
+  let ctx, W, H, particles, phase, phaseTime, animId;
+
+  // Slider-controlled parameters
+  let gustPeak = 60;
+  let gustFreq = 1;
+  let weightVar = 1.5;
+
+  function readSliders() {
+    gustPeak = parseFloat(document.getElementById('e9-gust').value);
+    gustFreq = parseFloat(document.getElementById('e9-freq').value);
+    weightVar = parseFloat(document.getElementById('e9-weight').value);
+    document.getElementById('e9-gust-val').textContent = gustPeak;
+    document.getElementById('e9-freq-val').textContent = gustFreq;
+    document.getElementById('e9-weight-val').textContent = weightVar;
+  }
+
+  function resize() {
+    const rect = area.getBoundingClientRect();
+    W = Math.round(rect.width);
+    H = Math.round(rect.height);
+    canvas.width = W * devicePixelRatio;
+    canvas.height = H * devicePixelRatio;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx = canvas.getContext('2d');
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+  }
+
+  function initParticles() {
+    const points = sampleTextPixelsFine(
+      SAMPLE_TEXT, W, H, 20, 'Georgia, serif'
+    );
+    particles = points.map((p) => {
+      const col = randomDustColor();
+      const weight = 0.3 + Math.random() * weightVar;
+      // Heavier = larger, darker; lighter = smaller, paler
+      const sizeBias = weight > 0.7 ? 0.8 + Math.random() * 0.7 :
+                                       0.3 + Math.random() * 0.5;
+      const alphaBias = weight > 0.7 ? 0.5 + Math.random() * 0.3 :
+                                        0.3 + Math.random() * 0.3;
+      return {
+        ox: p.x, oy: p.y,
+        x: p.x, y: p.y,
+        vx: 0, vy: 0,
+        alpha: alphaBias,
+        maxAlpha: alphaBias,
+        size: sizeBias,
+        r: col.r, g: col.g, b: col.b,
+        weight,
+        turbPhase: Math.random() * Math.PI * 2,
+        turbFreq: 0.8 + Math.random() * 1.2,
+        distTraveled: 0,
+        maxDist: 200 + Math.random() * 300,
+      };
+    });
+  }
+
+  function updateParticles(dt, elapsed) {
+    ctx.clearRect(0, 0, W, H);
+
+    // Wind in waves — starts gentle, then gusts
+    const ramp = Math.min(elapsed / 0.8, 1);
+    const gustScale = gustPeak / 60;
+    const gustBase = 50 * gustScale * ramp;
+    const gust1 = 35 * gustScale * Math.sin(elapsed * 0.5 * gustFreq + 0.3);
+    const gust2 = 20 * gustScale * Math.sin(elapsed * 1.3 * gustFreq + 1.7);
+    const windX = gustBase + gust1 + gust2;
+    const windY = 8 * Math.sin(elapsed * 0.9 * gustFreq + 0.5);
+
+    for (const p of particles) {
+      if (p.alpha <= 0) continue;
+
+      const invWeight = 1.3 - p.weight; // lighter = faster
+
+      // Streamline wind
+      p.vx += windX * invWeight * dt;
+      p.vy += windY * invWeight * dt;
+
+      // Slight gravity on heavier particles
+      p.vy += 10 * p.weight * dt;
+
+      // Subtle turbulence for organic flow
+      p.vy += Math.sin(
+        elapsed * p.turbFreq + p.turbPhase
+      ) * 10 * invWeight * dt;
+
+      // Air resistance — exponential decay
+      const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+      const drag = 1 - Math.min(0.02 * speed * dt, 0.4);
+      p.vx *= drag;
+      p.vy *= drag;
+
+      const dx = p.vx * dt;
+      const dy = p.vy * dt;
+      p.x += dx;
+      p.y += dy;
+      p.distTraveled += Math.sqrt(dx * dx + dy * dy);
+
+      // Fade based on distance, not just time
+      const distFade = 1 - Math.min(
+        p.distTraveled / p.maxDist, 1
+      );
+      p.alpha = p.maxAlpha * distFade;
+      if (p.alpha < 0.01) { p.alpha = 0; continue; }
+
+      // Motion blur — draw as short line in velocity direction
+      if (speed > 5) {
+        const len = Math.min(speed * 0.04, 3);
+        const nx = p.vx / speed;
+        const ny = p.vy / speed;
+        ctx.strokeStyle =
+          `rgba(${p.r},${p.g},${p.b},${p.alpha})`;
+        ctx.lineWidth = p.size;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(p.x - nx * len, p.y - ny * len);
+        ctx.lineTo(p.x + nx * len, p.y + ny * len);
+        ctx.stroke();
+      } else {
+        ctx.fillStyle =
+          `rgba(${p.r},${p.g},${p.b},${p.alpha})`;
+        ctx.fillRect(
+          p.x - p.size * 0.5,
+          p.y - p.size * 0.5,
+          p.size,
+          p.size
+        );
+      }
+    }
+  }
+
+  let lastTime = 0;
+  function startCycle() {
+    phase = PHASE_FADE_IN; phaseTime = 0;
+    lastTime = performance.now();
+    resize(); initParticles(); loop();
+  }
+
+  function loop() {
+    if (!visiblePanels.has('panel9')) {
+      animId = requestAnimationFrame(loop); return;
+    }
+    const now = performance.now();
+    const dt = Math.min((now - lastTime) / 1000, 0.05);
+    lastTime = now; phaseTime += dt;
+
+    switch (phase) {
+      case PHASE_FADE_IN:
+        drawWrappedText(ctx, SAMPLE_TEXT, W, H,
+          Math.min(phaseTime / 1.0, 1));
+        if (phaseTime >= 1.0) { phase = PHASE_HOLD; phaseTime = 0; }
+        break;
+      case PHASE_HOLD:
+        drawWrappedText(ctx, SAMPLE_TEXT, W, H, 1);
+        if (phaseTime >= 2.0) {
+          phase = PHASE_DISSOLVE; phaseTime = 0;
+          particles.forEach((p) => {
+            p.x = p.ox; p.y = p.oy;
+            p.vx = 0; p.vy = 0;
+            p.alpha = p.maxAlpha;
+            p.distTraveled = 0;
+          });
+        }
+        break;
+      case PHASE_DISSOLVE:
+        updateParticles(dt, phaseTime);
+        if (phaseTime >= 4.0) { phase = PHASE_PAUSE; phaseTime = 0; }
+        break;
+      case PHASE_PAUSE:
+        ctx.clearRect(0, 0, W, H);
+        if (phaseTime >= 1.0) {
+          phase = PHASE_FADE_IN; phaseTime = 0;
+          resize(); initParticles();
+        }
+        break;
+    }
+    animId = requestAnimationFrame(loop);
+  }
+
+  startCycle();
+  document.querySelector('[data-effect="9"]').addEventListener('click', () => {
+    readSliders();
+    cancelAnimationFrame(animId); startCycle();
+  });
+
+  document.querySelectorAll('#controls9 input').forEach((inp) => {
+    inp.addEventListener('input', () => {
+      readSliders();
+      cancelAnimationFrame(animId); startCycle();
+    });
+  });
+})();
+
+// ============================================================
+//  EFFECT 10: Dust — Entropy
+//
+//  Text decays character by character (left to right wave).
+//  Extremely fine particles, mixed behaviors (float, drift,
+//  fall). Long lifetime, ambient background dust.
+// ============================================================
+(function effect10() {
+  const canvas = document.getElementById('canvas10');
+  const area = document.getElementById('area10');
+  let ctx, W, H, particles, ambientParticles;
+  let phase, phaseTime, animId, totalChars;
+
+  // Slider-controlled parameters
+  let dissolveSpeed = 1;
+  let gravity10 = 5;
+  let fadeSpeed = 0.12;
+  let ambientCount = 40;
+
+  function readSliders() {
+    dissolveSpeed = parseFloat(document.getElementById('e10-speed').value);
+    gravity10 = parseFloat(document.getElementById('e10-gravity').value);
+    fadeSpeed = parseFloat(document.getElementById('e10-fade').value);
+    ambientCount = parseInt(document.getElementById('e10-ambient').value);
+    document.getElementById('e10-speed-val').textContent = dissolveSpeed;
+    document.getElementById('e10-gravity-val').textContent = gravity10;
+    document.getElementById('e10-fade-val').textContent = fadeSpeed;
+    document.getElementById('e10-ambient-val').textContent = ambientCount;
+  }
+
+  function resize() {
+    const rect = area.getBoundingClientRect();
+    W = Math.round(rect.width);
+    H = Math.round(rect.height);
+    canvas.width = W * devicePixelRatio;
+    canvas.height = H * devicePixelRatio;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx = canvas.getContext('2d');
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+  }
+
+  function initAmbient() {
+    // Constantly drifting ambient dust
+    ambientParticles = [];
+    for (let i = 0; i < ambientCount; i++) {
+      const col = randomDustColor();
+      ambientParticles.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        vx: (Math.random() - 0.5) * 8,
+        vy: (Math.random() - 0.5) * 4 - 2,
+        alpha: 0.05 + Math.random() * 0.12,
+        size: 0.3 + Math.random() * 0.6,
+        r: col.r, g: col.g, b: col.b,
+        phase: Math.random() * Math.PI * 2,
+      });
+    }
+  }
+
+  function initParticles() {
+    const result = sampleTextPixelsPerChar(
+      SAMPLE_TEXT, W, H, 20, 'Georgia, serif'
+    );
+    totalChars = result.totalChars;
+    particles = result.points.map((p) => {
+      const col = randomDustColor();
+      // Mixed behavior: float up, drift sideways, or fall
+      const behavior = Math.random();
+      let baseVy, baseVx;
+      if (behavior < 0.25) {
+        // Float up (heat convection)
+        baseVy = -(15 + Math.random() * 25);
+        baseVx = (Math.random() - 0.5) * 15;
+      } else if (behavior < 0.6) {
+        // Drift sideways and slightly down
+        baseVx = 15 + Math.random() * 30;
+        baseVy = 5 + Math.random() * 15;
+      } else {
+        // Fall mostly down
+        baseVx = (Math.random() - 0.5) * 20;
+        baseVy = 20 + Math.random() * 40;
+      }
+      return {
+        ox: p.x, oy: p.y,
+        x: p.x, y: p.y,
+        vx: 0, vy: 0,
+        baseVx, baseVy,
+        alpha: 0,
+        maxAlpha: 0.3 + Math.random() * 0.5,
+        size: 0.3 + Math.random() * 0.7,
+        r: col.r, g: col.g, b: col.b,
+        charIndex: p.charIndex,
+        released: false,
+        life: 1.0,
+        turbPhase: Math.random() * Math.PI * 2,
+      };
+    });
+  }
+
+  function drawAmbient(dt, elapsed) {
+    for (const a of ambientParticles) {
+      a.x += a.vx * dt;
+      a.y += a.vy * dt;
+      a.x += Math.sin(elapsed * 0.3 + a.phase) * 2 * dt;
+      a.y += Math.cos(elapsed * 0.4 + a.phase) * 1.5 * dt;
+
+      // Wrap around
+      if (a.x < 0) a.x = W;
+      if (a.x > W) a.x = 0;
+      if (a.y < 0) a.y = H;
+      if (a.y > H) a.y = 0;
+
+      ctx.fillStyle =
+        `rgba(${a.r},${a.g},${a.b},${a.alpha})`;
+      ctx.fillRect(
+        a.x - a.size * 0.5,
+        a.y - a.size * 0.5,
+        a.size,
+        a.size
+      );
+    }
+  }
+
+  function updateParticles(dt, elapsed) {
+    ctx.clearRect(0, 0, W, H);
+
+    // Wave of dissolution: release chars over time
+    const charsPerSec = (totalChars / 2.5) * dissolveSpeed;
+    const releasedUpTo = Math.floor(elapsed * charsPerSec);
+
+    // Draw text for not-yet-released characters
+    // (We draw the full text then overdraw released particles)
+    // Instead: draw only unreleased chars via checking particles
+    let hasUnreleased = false;
+
+    for (const p of particles) {
+      if (!p.released && p.charIndex <= releasedUpTo) {
+        p.released = true;
+        p.alpha = p.maxAlpha;
+        p.x = p.ox; p.y = p.oy;
+        p.vx = p.baseVx * (0.7 + Math.random() * 0.6);
+        p.vy = p.baseVy * (0.7 + Math.random() * 0.6);
+      }
+
+      if (!p.released) {
+        // Still part of text — draw as text pixel
+        hasUnreleased = true;
+        ctx.fillStyle = `rgba(224,224,224,1)`;
+        ctx.fillRect(p.ox, p.oy, 2, 2);
+        continue;
+      }
+
+      if (p.alpha <= 0) continue;
+
+      // Physics
+      p.vx += Math.sin(
+        elapsed * 0.8 + p.turbPhase
+      ) * 5 * dt;
+      p.vy += gravity10 * dt;
+
+      // Air resistance
+      p.vx *= 0.998;
+      p.vy *= 0.998;
+
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+
+      // Very slow fade — dust lingers
+      p.life -= fadeSpeed * dt;
+      p.alpha = p.maxAlpha * Math.max(0, p.life);
+      if (p.alpha < 0) p.alpha = 0;
+
+      ctx.fillStyle =
+        `rgba(${p.r},${p.g},${p.b},${p.alpha})`;
+      ctx.fillRect(
+        p.x - p.size * 0.5,
+        p.y - p.size * 0.5,
+        p.size,
+        p.size
+      );
+    }
+
+    // Ambient dust always visible
+    drawAmbient(dt, elapsed);
+  }
+
+  let lastTime = 0;
+  function startCycle() {
+    phase = PHASE_FADE_IN; phaseTime = 0;
+    lastTime = performance.now();
+    resize(); initParticles(); initAmbient(); loop();
+  }
+
+  function loop() {
+    if (!visiblePanels.has('panel10')) {
+      animId = requestAnimationFrame(loop); return;
+    }
+    const now = performance.now();
+    const dt = Math.min((now - lastTime) / 1000, 0.05);
+    lastTime = now; phaseTime += dt;
+
+    switch (phase) {
+      case PHASE_FADE_IN:
+        drawWrappedText(ctx, SAMPLE_TEXT, W, H,
+          Math.min(phaseTime / 1.0, 1));
+        // Draw ambient on top
+        drawAmbient(dt, phaseTime);
+        if (phaseTime >= 1.0) { phase = PHASE_HOLD; phaseTime = 0; }
+        break;
+      case PHASE_HOLD:
+        drawWrappedText(ctx, SAMPLE_TEXT, W, H, 1);
+        drawAmbient(dt, phaseTime);
+        if (phaseTime >= 2.0) {
+          phase = PHASE_DISSOLVE; phaseTime = 0;
+          particles.forEach((p) => {
+            p.x = p.ox; p.y = p.oy;
+            p.vx = 0; p.vy = 0;
+            p.alpha = 0;
+            p.released = false;
+            p.life = 1.0;
+          });
+        }
+        break;
+      case PHASE_DISSOLVE:
+        updateParticles(dt, phaseTime);
+        if (phaseTime >= 5.0) { phase = PHASE_PAUSE; phaseTime = 0; }
+        break;
+      case PHASE_PAUSE:
+        ctx.clearRect(0, 0, W, H);
+        drawAmbient(dt, phaseTime);
+        if (phaseTime >= 1.5) {
+          phase = PHASE_FADE_IN; phaseTime = 0;
+          resize(); initParticles();
+        }
+        break;
+    }
+    animId = requestAnimationFrame(loop);
+  }
+
+  startCycle();
+  document.querySelector('[data-effect="10"]').addEventListener('click', () => {
+    readSliders();
+    cancelAnimationFrame(animId); startCycle();
+  });
+
+  document.querySelectorAll('#controls10 input').forEach((inp) => {
+    inp.addEventListener('input', () => {
+      readSliders();
+      cancelAnimationFrame(animId); startCycle();
+    });
+  });
+})();
+
+// ============================================================
+//  EFFECT 11: Dust — Simultaneous Entropy
+//
+//  Same aesthetic as Effect 10 (mixed behaviors, ambient dust,
+//  lingering particles) but ALL text dissolves at once instead
+//  of character-by-character.
+// ============================================================
+(function effect11() {
+  const canvas = document.getElementById('canvas11');
+  const area = document.getElementById('area11');
+  let ctx, W, H, particles, ambientParticles;
+  let phase, phaseTime, animId;
+
+  // Slider-controlled parameters
+  let stagger = 0.3;
+  let gravity11 = 5;
+  let fadeSpeed11 = 0.12;
+  let ambientCount11 = 40;
+
+  function readSliders() {
+    stagger = parseFloat(document.getElementById('e11-stagger').value);
+    gravity11 = parseFloat(document.getElementById('e11-gravity').value);
+    fadeSpeed11 = parseFloat(document.getElementById('e11-fade').value);
+    ambientCount11 = parseInt(document.getElementById('e11-ambient').value);
+    document.getElementById('e11-stagger-val').textContent = stagger;
+    document.getElementById('e11-gravity-val').textContent = gravity11;
+    document.getElementById('e11-fade-val').textContent = fadeSpeed11;
+    document.getElementById('e11-ambient-val').textContent = ambientCount11;
+  }
+
+  function resize() {
+    const rect = area.getBoundingClientRect();
+    W = Math.round(rect.width);
+    H = Math.round(rect.height);
+    canvas.width = W * devicePixelRatio;
+    canvas.height = H * devicePixelRatio;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx = canvas.getContext('2d');
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+  }
+
+  function initAmbient() {
+    ambientParticles = [];
+    for (let i = 0; i < ambientCount11; i++) {
+      const col = randomDustColor();
+      ambientParticles.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        vx: (Math.random() - 0.5) * 8,
+        vy: (Math.random() - 0.5) * 4 - 2,
+        alpha: 0.05 + Math.random() * 0.12,
+        size: 0.3 + Math.random() * 0.6,
+        r: col.r, g: col.g, b: col.b,
+        phase: Math.random() * Math.PI * 2,
+      });
+    }
+  }
+
+  function drawAmbient(dt, elapsed) {
+    for (const a of ambientParticles) {
+      a.x += a.vx * dt;
+      a.y += a.vy * dt;
+      a.x += Math.sin(elapsed * 0.3 + a.phase) * 2 * dt;
+      a.y += Math.cos(elapsed * 0.4 + a.phase) * 1.5 * dt;
+      if (a.x < 0) a.x = W;
+      if (a.x > W) a.x = 0;
+      if (a.y < 0) a.y = H;
+      if (a.y > H) a.y = 0;
+      ctx.fillStyle =
+        `rgba(${a.r},${a.g},${a.b},${a.alpha})`;
+      ctx.fillRect(
+        a.x - a.size * 0.5,
+        a.y - a.size * 0.5,
+        a.size,
+        a.size
+      );
+    }
+  }
+
+  function initParticles() {
+    const result = sampleTextPixelsPerChar(
+      SAMPLE_TEXT, W, H, 20, 'Georgia, serif'
+    );
+    particles = result.points.map((p) => {
+      const col = randomDustColor();
+      const behavior = Math.random();
+      let baseVy, baseVx;
+      if (behavior < 0.25) {
+        baseVy = -(15 + Math.random() * 25);
+        baseVx = (Math.random() - 0.5) * 15;
+      } else if (behavior < 0.6) {
+        baseVx = 15 + Math.random() * 30;
+        baseVy = 5 + Math.random() * 15;
+      } else {
+        baseVx = (Math.random() - 0.5) * 20;
+        baseVy = 20 + Math.random() * 40;
+      }
+      return {
+        ox: p.x, oy: p.y,
+        x: p.x, y: p.y,
+        vx: 0, vy: 0,
+        baseVx, baseVy,
+        alpha: 0,
+        maxAlpha: 0.3 + Math.random() * 0.5,
+        size: 0.3 + Math.random() * 0.7,
+        r: col.r, g: col.g, b: col.b,
+        released: false,
+        life: 1.0,
+        turbPhase: Math.random() * Math.PI * 2,
+        // Small random delay for organic stagger
+        delay: Math.random() * stagger,
+      };
+    });
+  }
+
+  function updateParticles(dt, elapsed) {
+    ctx.clearRect(0, 0, W, H);
+
+    for (const p of particles) {
+      // Release all at once with tiny random stagger
+      if (!p.released && elapsed >= p.delay) {
+        p.released = true;
+        p.alpha = p.maxAlpha;
+        p.x = p.ox; p.y = p.oy;
+        p.vx = p.baseVx * (0.7 + Math.random() * 0.6);
+        p.vy = p.baseVy * (0.7 + Math.random() * 0.6);
+      }
+
+      if (!p.released) {
+        // Still part of text
+        ctx.fillStyle = `rgba(224,224,224,1)`;
+        ctx.fillRect(p.ox, p.oy, 2, 2);
+        continue;
+      }
+
+      if (p.alpha <= 0) continue;
+
+      // Physics
+      p.vx += Math.sin(
+        elapsed * 0.8 + p.turbPhase
+      ) * 5 * dt;
+      p.vy += gravity11 * dt;
+
+      // Air resistance
+      p.vx *= 0.998;
+      p.vy *= 0.998;
+
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+
+      // Very slow fade
+      p.life -= fadeSpeed11 * dt;
+      p.alpha = p.maxAlpha * Math.max(0, p.life);
+      if (p.alpha < 0) p.alpha = 0;
+
+      ctx.fillStyle =
+        `rgba(${p.r},${p.g},${p.b},${p.alpha})`;
+      ctx.fillRect(
+        p.x - p.size * 0.5,
+        p.y - p.size * 0.5,
+        p.size,
+        p.size
+      );
+    }
+
+    drawAmbient(dt, elapsed);
+  }
+
+  let lastTime = 0;
+  function startCycle() {
+    phase = PHASE_FADE_IN; phaseTime = 0;
+    lastTime = performance.now();
+    resize(); initParticles(); initAmbient(); loop();
+  }
+
+  function loop() {
+    if (!visiblePanels.has('panel11')) {
+      animId = requestAnimationFrame(loop); return;
+    }
+    const now = performance.now();
+    const dt = Math.min((now - lastTime) / 1000, 0.05);
+    lastTime = now; phaseTime += dt;
+
+    switch (phase) {
+      case PHASE_FADE_IN:
+        drawWrappedText(ctx, SAMPLE_TEXT, W, H,
+          Math.min(phaseTime / 1.0, 1));
+        drawAmbient(dt, phaseTime);
+        if (phaseTime >= 1.0) { phase = PHASE_HOLD; phaseTime = 0; }
+        break;
+      case PHASE_HOLD:
+        drawWrappedText(ctx, SAMPLE_TEXT, W, H, 1);
+        drawAmbient(dt, phaseTime);
+        if (phaseTime >= 2.0) {
+          phase = PHASE_DISSOLVE; phaseTime = 0;
+          particles.forEach((p) => {
+            p.x = p.ox; p.y = p.oy;
+            p.vx = 0; p.vy = 0;
+            p.alpha = 0;
+            p.released = false;
+            p.life = 1.0;
+          });
+        }
+        break;
+      case PHASE_DISSOLVE:
+        updateParticles(dt, phaseTime);
+        if (phaseTime >= 5.0) { phase = PHASE_PAUSE; phaseTime = 0; }
+        break;
+      case PHASE_PAUSE:
+        ctx.clearRect(0, 0, W, H);
+        drawAmbient(dt, phaseTime);
+        if (phaseTime >= 1.5) {
+          phase = PHASE_FADE_IN; phaseTime = 0;
+          resize(); initParticles();
+        }
+        break;
+    }
+    animId = requestAnimationFrame(loop);
+  }
+
+  startCycle();
+  document.querySelector('[data-effect="11"]').addEventListener('click', () => {
+    readSliders();
+    cancelAnimationFrame(animId); startCycle();
+  });
+
+  document.querySelectorAll('#controls11 input').forEach((inp) => {
+    inp.addEventListener('input', () => {
+      readSliders();
+      cancelAnimationFrame(animId); startCycle();
+    });
+  });
+})();
+</script>
+</body>
+</html>
