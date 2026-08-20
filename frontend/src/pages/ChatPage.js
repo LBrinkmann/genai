@@ -129,6 +129,7 @@ function ChatPage() {
     loggingEnabled,
     visibleLimit,
     contextLimit,
+    testMode,
   } = useConfig();
 
   const { userId, sessionId, createSession, resetSession } = useSession();
@@ -149,6 +150,7 @@ function ChatPage() {
     userId,
     loggingEnabled,
     contextLimit,
+    testMode,
   });
 
   const [sessionError, setSessionError] = useState(null);
@@ -160,25 +162,38 @@ function ChatPage() {
     activate: activateEndpoint,
   } = useEndpoints();
 
+  // Test-mode sessions are flagged by their recorded config name, so
+  // debug traffic is separable at export time without a schema
+  // change. That also means a session must never span both modes:
+  // switching starts a fresh one and clears the transcript, so a
+  // stored session's semantics stay constant end to end.
+  const sessionConfigName = testMode
+    ? `${configName}__test`
+    : configName;
+  const lastSessionConfigName = useRef(null);
+
   useEffect(() => {
-    if (config && !sessionId) {
-      createSession(configName).catch((err) => {
-        console.error('Session creation failed:', err);
-        setSessionError('Failed to create session. Please reload.');
-      });
-    }
-  }, [config, sessionId, createSession, configName]);
+    if (!config) return;
+    if (lastSessionConfigName.current === sessionConfigName) return;
+    const isModeSwitch = lastSessionConfigName.current !== null;
+    lastSessionConfigName.current = sessionConfigName;
+    if (isModeSwitch) clearMessages();
+    createSession(sessionConfigName).catch((err) => {
+      console.error('Session creation failed:', err);
+      setSessionError('Failed to create session. Please reload.');
+    });
+  }, [config, sessionConfigName, createSession, clearMessages]);
 
   const handleReset = useCallback(async () => {
     clearMessages();
     try {
-      await resetSession(configName);
+      await resetSession(sessionConfigName);
       setSessionError(null);
     } catch (err) {
       console.error('Session reset failed:', err);
       setSessionError('Failed to reset session. Please reload.');
     }
-  }, [clearMessages, resetSession, configName]);
+  }, [clearMessages, resetSession, sessionConfigName]);
 
   const handleFeedbackConfirm = useCallback(
     async (messageIndex, selectedTags) => {
@@ -256,6 +271,7 @@ function ChatPage() {
       <MessageList
         messages={messages}
         onSelectResponse={selectResponse}
+        testMode={testMode}
         feedbackCategories={feedbackCategories}
         mainPreferenceFeedback={mainPreferenceFeedback}
         onFeedbackConfirm={handleFeedbackConfirm}

@@ -1,10 +1,13 @@
+# Public default is the single-bot v1 config. v2 only enters play
+# when an admin selects it via the "Which bots answer" toggle,
+# which keeps its A100 asleep for ordinary visitors.
 defaults:
-  config: "comparison"
+  config: "default"
   log: true
 
 bots:
-  - name: "genocideai-a"
-    display_name: "GENocideAI"
+  - name: "genocideai-v1"
+    display_name: "v1"
     model: "NoraAl/GENocideAI-01"
     api_url: "https://twt8ziu7jvtabi5l.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions"
     api_key: "${HF_INFERENCE_TOKEN}"
@@ -20,16 +23,20 @@ bots:
       namespace: "NoraAl"
       name: "genocideai-01-ywg"
 
-  - name: "genocideai-b"
-    display_name: "GENocideAI"
-    model: "NoraAl/GENocideAI-01"
-    api_url: "https://twt8ziu7jvtabi5l.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions"
+  - name: "genocideai-v2"
+    display_name: "v2"
+    model: "NoraAl/GENocideAI-02"
+    api_url: "https://cyv1qd5rml46nxij.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions"
     api_key: "${HF_INFERENCE_TOKEN}"
     system_message: ""
+    llm_endpoint:
+      provider: "hf"
+      namespace: "NoraAl"
+      name: "genocideai-02-vllm"
 
 feedback_configs:
   - name: "default"
-    bots: ["genocideai-a"]
+    bots: ["genocideai-v1"]
     main_preference_feedback: ""
     additional_categories: []
     # Display cap: how many resolved messages stay visible in the
@@ -43,7 +50,7 @@ feedback_configs:
     context_limit: null
 
   - name: "comparison"
-    bots: ["genocideai-a", "genocideai-b"]
+    bots: ["genocideai-v1", "genocideai-v2"]
     main_preference_feedback: "I prefer this response"
     additional_categories:
       - "Stronger identification"

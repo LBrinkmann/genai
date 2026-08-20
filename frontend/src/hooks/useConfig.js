@@ -66,6 +66,9 @@ export default function useConfig() {
     typeof config?.context_limit === 'number'
       ? config.context_limit
       : null;
+  // Debug-only parallel mode, driven by the admin override layer.
+  // Absent on older config payloads, so default to off.
+  const testMode = config?.test_mode === true;
 
   return {
     config,
@@ -75,5 +78,6 @@ export default function useConfig() {
     loggingEnabled,
     visibleLimit,
     contextLimit,
+    testMode,
   };
 }

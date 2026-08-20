@@ -38,6 +38,7 @@ async def get_feedback_config(
                 additional_categories=(fc.additional_categories),
                 visible_limit=fc.visible_limit,
                 context_limit=fc.context_limit,
+                test_mode=fc.test_mode,
                 defaults=defaults,
             )
     raise HTTPException(

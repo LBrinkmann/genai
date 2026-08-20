@@ -58,9 +58,9 @@ def _reset_rate_limit_for_tests() -> None:
 # ---- Helpers ------------------------------------------------------------
 
 
-async def _current_verdict(mode: str) -> dict:
+async def _current_verdict(mode: str, cfg=None) -> dict:
     """Build the chat-gate verdict for ``mode`` (skips HF when it can)."""
-    bots = endpoint_control.managed_bots()
+    bots = endpoint_control.managed_bots(cfg)
     if mode in ("off", "on") or not bots:
         verdict = endpoint_control.aggregate_state(mode, [])
     else:
@@ -79,7 +79,8 @@ async def endpoint_state(
     """Aggregate readiness of the managed endpoints for the chat gate."""
     overrides = await config_overrides.load_overrides(session)
     mode = endpoint_control.read_mode(overrides)
-    return await _current_verdict(mode)
+    cfg = await config_overrides.get_merged_config(session)
+    return await _current_verdict(mode, cfg)
 
 
 @router.post("/activate")
@@ -112,7 +113,10 @@ async def activate_endpoints(
             headers={"Retry-After": str(retry_after)},
         )
 
-    bots = endpoint_control.managed_bots()
+    # Scoped to the active config, so a visitor on the v1-only default
+    # never wakes the GPU behind a bot they cannot reach.
+    cfg = await config_overrides.get_merged_config(session)
+    bots = endpoint_control.managed_bots(cfg)
     await endpoint_control.wake_all(bots)
     audit_event(
         "endpoints.activate",

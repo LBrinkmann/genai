@@ -10,6 +10,10 @@ Override semantics (sparse — only present keys override):
   - ``active_feedback_config`` (str)→ pinned to ``AppConfig.defaults.config``
   - ``bot_overrides`` (mapping)     → ``{<bot>: {"system_message": str}}``
     replaces the matching bot's ``system_message``.
+  - ``test_mode`` (bool)            → patched on every feedback_config
+  - ``active_bots`` (list[str])     → intersected with every
+    feedback_config's bot list; a config whose intersection would be
+    empty keeps its own bots (never strand a config with no bots).
 
 We keep a small in-memory cache (TTL 5s) keyed by
 ``(updated_at_iso, overrides_json)`` plus the wall-clock fetch time so
@@ -88,6 +92,22 @@ def merge_into_config(yaml_config: AppConfig, overrides: dict) -> AppConfig:
                 fc.visible_limit = int(visible)
             if context_present:
                 fc.context_limit = None if context is None else int(context)
+
+    test_mode = overrides.get("test_mode")
+    if test_mode is not None:
+        for fc in merged.feedback_configs:
+            fc.test_mode = bool(test_mode)
+
+    active_bots = overrides.get("active_bots")
+    if isinstance(active_bots, list) and active_bots:
+        allowed = set(active_bots)
+        for fc in merged.feedback_configs:
+            kept = [b for b in fc.bots if b in allowed]
+            # An empty intersection would leave the config with nobody
+            # to answer, so we leave such a config untouched rather
+            # than breaking it.
+            if kept:
+                fc.bots = kept
 
     active = overrides.get("active_feedback_config")
     if active:

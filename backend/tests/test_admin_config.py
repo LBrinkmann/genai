@@ -241,3 +241,90 @@ def test_patch_rejects_unknown_top_level_field(client, admin_cookie):
     client.cookies.set(SESSION_COOKIE_NAME, admin_cookie)
     resp = client.patch("/api/admin/config", json={"hax0r": 1})
     assert resp.status_code == 400
+
+
+def test_patch_test_mode_applies_to_feedback_configs(client, admin_cookie):
+    client.cookies.set(SESSION_COOKIE_NAME, admin_cookie)
+    resp = client.patch("/api/admin/config", json={"test_mode": True})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["overrides"]["test_mode"] is True
+    for fc in data["merged"]["feedback_configs"]:
+        assert fc["test_mode"] is True
+
+    # The public config endpoint surfaces it so the chat UI can switch.
+    public = client.get("/api/config/default")
+    assert public.status_code == 200
+    assert public.json()["test_mode"] is True
+
+
+def test_test_mode_defaults_to_false(client, admin_cookie):
+    public = client.get("/api/config/default")
+    assert public.status_code == 200
+    assert public.json()["test_mode"] is False
+
+
+def test_patch_test_mode_rejects_non_boolean(client, admin_cookie):
+    client.cookies.set(SESSION_COOKIE_NAME, admin_cookie)
+    resp = client.patch("/api/admin/config", json={"test_mode": "yes"})
+    assert resp.status_code == 400
+
+
+def test_patch_active_bots_filters_bot_list(client, admin_cookie):
+    client.cookies.set(SESSION_COOKIE_NAME, admin_cookie)
+    resp = client.patch("/api/admin/config", json={"active_bots": ["bot-b"]})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["overrides"]["active_bots"] == ["bot-b"]
+
+    fcs = {fc["name"]: fc for fc in data["merged"]["feedback_configs"]}
+    # "default" lists both bots, so it narrows to just bot-b.
+    assert fcs["default"]["bots"] == ["bot-b"]
+
+    public = client.get("/api/config/default")
+    assert [b["name"] for b in public.json()["bots"]] == ["bot-b"]
+
+
+def test_active_bots_never_strands_a_config_with_no_bots(
+    client, admin_cookie
+):
+    """"comparison" holds only bot-a; activating bot-b alone must not
+    leave it with an empty bot list."""
+    client.cookies.set(SESSION_COOKIE_NAME, admin_cookie)
+    resp = client.patch("/api/admin/config", json={"active_bots": ["bot-b"]})
+    assert resp.status_code == 200
+    fcs = {
+        fc["name"]: fc for fc in resp.json()["merged"]["feedback_configs"]
+    }
+    assert fcs["comparison"]["bots"] == ["bot-a"]
+
+
+def test_patch_active_bots_rejects_unknown_bot(client, admin_cookie):
+    client.cookies.set(SESSION_COOKIE_NAME, admin_cookie)
+    resp = client.patch(
+        "/api/admin/config", json={"active_bots": ["bot-a", "nope"]}
+    )
+    assert resp.status_code == 400
+    assert "nope" in resp.json()["detail"]
+
+
+def test_patch_active_bots_rejects_empty_list(client, admin_cookie):
+    client.cookies.set(SESSION_COOKIE_NAME, admin_cookie)
+    resp = client.patch("/api/admin/config", json={"active_bots": []})
+    assert resp.status_code == 400
+
+
+def test_patch_null_resets_test_mode_and_active_bots(client, admin_cookie):
+    client.cookies.set(SESSION_COOKIE_NAME, admin_cookie)
+    client.patch(
+        "/api/admin/config",
+        json={"test_mode": True, "active_bots": ["bot-b"]},
+    )
+    resp = client.patch(
+        "/api/admin/config",
+        json={"test_mode": None, "active_bots": None},
+    )
+    assert resp.status_code == 200
+    overrides = resp.json()["overrides"]
+    assert "test_mode" not in overrides
+    assert "active_bots" not in overrides

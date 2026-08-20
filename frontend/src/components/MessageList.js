@@ -30,6 +30,7 @@ function MessageList({
   mainPreferenceFeedback = '',
   onFeedbackConfirm,
   visibleLimit = 3,
+  testMode = false,
 }) {
   const endRef = useRef(null);
   const [evictedIds, setEvictedIds] = useState(() => new Set());
@@ -127,6 +128,33 @@ function MessageList({
                     }
                   />
                 </div>
+              </div>
+            );
+          }
+
+          // Parallel test mode: one labelled column per active bot,
+          // side by side. No Select button — the threads stay
+          // independent and nothing is ever chosen, so these never
+          // resolve into a canonical message.
+          if (isPending && testMode) {
+            return (
+              <div
+                key={msg.index}
+                className="mb-4 flex w-full flex-col gap-2 sm:flex-row"
+              >
+                {msg.content.map((resp, idx) => (
+                  <div
+                    key={idx}
+                    className="flex-1 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4"
+                  >
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                      {resp.bot}
+                    </p>
+                    <p className="whitespace-pre-wrap text-sm text-zinc-200">
+                      {resp.text}
+                    </p>
+                  </div>
+                ))}
               </div>
             );
           }

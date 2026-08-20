@@ -26,7 +26,7 @@ from typing import Optional
 
 import httpx
 
-from app.config import BotConfig, get_config
+from app.config import AppConfig, BotConfig, get_config
 from app.services import hf_endpoints
 
 # ---- Mode ---------------------------------------------------------------
@@ -82,10 +82,34 @@ def aggregate_state(mode: str, states: list[str]) -> dict:
 # ---- Managed bots -------------------------------------------------------
 
 
-def managed_bots() -> list[BotConfig]:
-    """Return all bots in the active config with a managed endpoint."""
-    cfg = get_config()
-    return [b for b in cfg.bots if b.llm_endpoint is not None]
+def managed_bots(cfg: Optional[AppConfig] = None) -> list[BotConfig]:
+    """Return the managed bots that are actually reachable right now.
+
+    Scoped to the *active* feedback config (``defaults.config``) rather
+    than every bot in the file. A bot no visitor can currently talk to
+    must never be woken or waited on — otherwise selecting a cheap bot
+    would still spin up the GPU behind an unselected one, and the chat
+    gate would block on an endpoint nobody needs.
+
+    Pass the override-merged config so the admin bot toggle is honoured;
+    falls back to the raw YAML singleton when none is given.
+    """
+    cfg = cfg or get_config()
+    active_name = cfg.defaults.config
+    active_fc = next(
+        (fc for fc in cfg.feedback_configs if fc.name == active_name),
+        None,
+    )
+    in_play = (
+        set(active_fc.bots)
+        if active_fc is not None
+        else {b.name for b in cfg.bots}
+    )
+    return [
+        b
+        for b in cfg.bots
+        if b.llm_endpoint is not None and b.name in in_play
+    ]
 
 
 # ---- Live state (short-TTL cached) -------------------------------------

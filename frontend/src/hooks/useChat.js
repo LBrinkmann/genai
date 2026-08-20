@@ -11,6 +11,7 @@ export default function useChat({
   userId = null,
   loggingEnabled = false,
   contextLimit = null,
+  testMode = false,
 }) {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -36,16 +37,33 @@ export default function useChat({
 
   // Build the conversation history sent to the bot. Independent of
   // `visible_limit` (D4): truncates to the last `contextLimit` messages
-  // when set. Pending RLHF comparisons (no user selection yet) cannot
-  // enter the bot context — they aren't committed; resolved comparisons
-  // flatten to the user-selected branch.
+  // when set.
+  //
+  // Two flattening rules, by mode:
+  //
+  //   RLHF (botIndex null) — pending comparisons (no user selection
+  //   yet) cannot enter the bot context; they aren't committed.
+  //   Resolved comparisons flatten to the user-selected branch, so
+  //   both bots share one history.
+  //
+  //   Parallel test mode (botIndex set) — the history is private to
+  //   bot `botIndex`: it sees the user turns plus its OWN prior
+  //   answers, never another bot's, so the threads never mix. A slot
+  //   that is empty (the bot was inactive that turn) is skipped, which
+  //   is what makes a re-activated bot catch up on the user messages
+  //   it missed without inventing answers of its own.
   const buildHistory = useCallback(
-    (msgs) => {
+    (msgs, botIndex = null) => {
+      const perBot =
+        typeof botIndex === 'number' && botIndex >= 0;
       const flattened = msgs
         .filter((m) => {
           if (m.role === 'user') return true;
           if (m.role === 'assistant') {
             if (Array.isArray(m.content)) {
+              if (perBot) {
+                return Boolean(m.content[botIndex]?.text);
+              }
               return (
                 m.selected !== null && m.selected !== undefined
               );
@@ -61,7 +79,9 @@ export default function useChat({
           ) {
             return {
               role: 'assistant',
-              content: m.content[m.selected].text,
+              content: perBot
+                ? m.content[botIndex].text
+                : m.content[m.selected].text,
             };
           }
           return { role: m.role, content: m.content };
@@ -120,13 +140,24 @@ export default function useChat({
       setIsLoading(true);
       try {
         const nextMessages = [...currentMessages, userMsg];
-        const history = buildHistory(nextMessages);
-        const isRlhf = bots.length === 2;
+        // Parallel test mode short-circuits the bot-count check: it
+        // renders as columns for any number of active bots, so
+        // deactivating one down to a single bot still behaves
+        // consistently rather than silently falling back to RLHF or
+        // to the streaming single-bot path.
+        const isParallel = testMode && bots.length > 0;
+        const isRlhf = !isParallel && bots.length === 2;
 
-        if (isRlhf) {
+        if (isParallel || isRlhf) {
+          // In parallel mode every bot gets a history private to it;
+          // in RLHF mode they share the one selection-flattened
+          // history, exactly as before.
           const results = await Promise.all(
-            bots.map((bot) =>
-              sendChat(bot.name, history).catch((err) => ({
+            bots.map((bot, i) =>
+              sendChat(
+                bot.name,
+                buildHistory(nextMessages, isParallel ? i : null)
+              ).catch((err) => ({
                 error: true,
                 message:
                   err?.response?.data?.detail ||
@@ -154,6 +185,8 @@ export default function useChat({
           await persistMessage(assistantMsg);
         } else {
           const bot = bots[0];
+          // Single-bot mode has one thread, so no per-bot index.
+          const history = buildHistory(nextMessages);
           const assistantIndex = nextMessages.length;
           const controller = new AbortController();
           streamControllersRef.current.set(
@@ -233,7 +266,13 @@ export default function useChat({
         setIsLoading(false);
       }
     },
-    [bots, buildHistory, persistMessage, abortAllStreams]
+    [
+      bots,
+      buildHistory,
+      persistMessage,
+      abortAllStreams,
+      testMode,
+    ]
   );
 
   const selectResponse = useCallback(

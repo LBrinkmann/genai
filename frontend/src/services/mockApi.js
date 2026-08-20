@@ -6,6 +6,7 @@
 const MOCK_CONFIG = {
   bots: [
     { name: 'bot-alpha', display_name: 'Alpha' },
+    { name: 'bot-beta', display_name: 'Beta' },
   ],
   additional_categories: [
     'Helpful',
@@ -73,7 +74,22 @@ function randomDelay(min = 300, max = 1200) {
 }
 
 export async function fetchConfig(_configName) {
-  return MOCK_CONFIG;
+  // Mirrors the backend override layer: the admin toggles for
+  // `test_mode` and `active_bots` feed straight back into the config
+  // the chat page reads, so the whole flow is exercisable offline.
+  // `_mockOverrides` is declared further down; safe to read here since
+  // this only runs after module init.
+  const requested = _mockOverrides.active_bots;
+  const filtered =
+    Array.isArray(requested) && requested.length
+      ? MOCK_CONFIG.bots.filter((b) => requested.includes(b.name))
+      : MOCK_CONFIG.bots;
+  return {
+    ...MOCK_CONFIG,
+    // Never strand the chat with zero bots (matches the backend rule).
+    bots: filtered.length ? filtered : MOCK_CONFIG.bots,
+    test_mode: _mockOverrides.test_mode === true,
+  };
 }
 
 export async function sendChat(botName, messages) {
@@ -366,7 +382,11 @@ let _mockUpdatedAt = null;
 let _mockUpdatedBy = null;
 
 const _AVAILABLE_FEEDBACK_CONFIGS = ['default', 'comparison'];
-const _AVAILABLE_BOTS = ['bot-alpha'];
+const _AVAILABLE_BOTS = ['bot-alpha', 'bot-beta'];
+const _BOT_DISPLAY_NAMES = {
+  'bot-alpha': 'Alpha',
+  'bot-beta': 'Beta',
+};
 
 function _mockMergedConfig() {
   // Synthesize a plausible merged-config snapshot.
@@ -382,22 +402,38 @@ function _mockMergedConfig() {
   return {
     bots: _AVAILABLE_BOTS.map((name) => ({
       name,
-      display_name: name === 'bot-alpha' ? 'Alpha' : name,
-      model: 'gpt-mock',
+      display_name: _BOT_DISPLAY_NAMES[name] || name,
+      model: `gpt-mock-${name.replace('bot-', '')}`,
       api_url: 'https://mock.invalid',
       api_key: '',
       system_message:
         _mockOverrides?.bot_overrides?.[name]?.system_message ||
         `You are ${name}.`,
     })),
-    feedback_configs: _AVAILABLE_FEEDBACK_CONFIGS.map((name) => ({
-      name,
-      bots: _AVAILABLE_BOTS,
-      main_preference_feedback: '',
-      additional_categories: [],
-      visible_limit: overrideVisible,
-      context_limit: overrideContext,
-    })),
+    feedback_configs: _AVAILABLE_FEEDBACK_CONFIGS.map((name) => {
+      // Mirrors config/experiment.yml: "default" is single-bot,
+      // "comparison" pairs two bots for the RLHF side-by-side.
+      const declared =
+        name === 'comparison'
+          ? _AVAILABLE_BOTS
+          : _AVAILABLE_BOTS.slice(0, 1);
+      const requested = _mockOverrides.active_bots;
+      const kept =
+        Array.isArray(requested) && requested.length
+          ? declared.filter((b) => requested.includes(b))
+          : declared;
+      return {
+        name,
+        // An empty intersection would leave the config with nobody to
+        // answer, so keep the declared list in that case.
+        bots: kept.length ? kept : declared,
+        main_preference_feedback: '',
+        additional_categories: [],
+        visible_limit: overrideVisible,
+        context_limit: overrideContext,
+        test_mode: _mockOverrides.test_mode === true,
+      };
+    }),
     defaults: {
       config:
         _mockOverrides.active_feedback_config ||

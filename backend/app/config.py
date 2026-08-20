@@ -44,6 +44,10 @@ class FeedbackConfig(BaseModel):
     additional_categories: list[str] = []
     visible_limit: int = 3
     context_limit: Optional[int] = None
+    # Debug-only. When true the bots answer in parallel on independent
+    # histories and no preference selection is offered. Set via the
+    # admin override layer, never in YAML.
+    test_mode: bool = False
 
 
 class DefaultsConfig(BaseModel):

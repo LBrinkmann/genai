@@ -75,6 +75,8 @@ class ConfigOverride(Base):
       - ``context_limit`` (int | null)
       - ``active_feedback_config`` (str)
       - ``bot_overrides`` (mapping of bot name → {"system_message": str})
+      - ``test_mode`` (bool) — parallel debug mode, no preference selection
+      - ``active_bots`` (list[str]) — subset of bots that answer
     """
 
     __tablename__ = "config_overrides_v1"

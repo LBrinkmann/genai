@@ -72,6 +72,7 @@ class ConfigResponse(BaseModel):
     additional_categories: list[str] = []
     visible_limit: int = 3
     context_limit: Optional[int] = None
+    test_mode: bool = False
     defaults: DefaultsResponse = DefaultsResponse()
 
 
@@ -93,6 +94,8 @@ class AdminConfigPatch(BaseModel):
     context_limit: Optional[int] = Field(default=None, ge=1)
     active_feedback_config: Optional[str] = None
     bot_overrides: Optional[dict[str, BotOverridePatch]] = None
+    test_mode: Optional[bool] = None
+    active_bots: Optional[list[str]] = None
 
     # Marker so callers can distinguish "context_limit explicitly null"
     # from "context_limit not in patch". Populated in the route from

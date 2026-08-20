@@ -320,6 +320,8 @@ def _validate_patch(
         "context_limit",
         "active_feedback_config",
         "bot_overrides",
+        "test_mode",
+        "active_bots",
     }
     extra = set(patch.keys()) - allowed
     if extra:
@@ -356,6 +358,36 @@ def _validate_patch(
                     f"{available_feedback_configs}"
                 ),
             )
+
+    if "test_mode" in patch:
+        v = patch["test_mode"]
+        if v is not None and not isinstance(v, bool):
+            raise HTTPException(
+                status_code=400,
+                detail="test_mode must be a boolean or null",
+            )
+
+    if "active_bots" in patch:
+        v = patch["active_bots"]
+        if v is not None:
+            if not isinstance(v, list) or not all(
+                isinstance(b, str) for b in v
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail="active_bots must be a list of bot names or null",
+                )
+            if not v:
+                raise HTTPException(
+                    status_code=400,
+                    detail="active_bots must not be empty",
+                )
+            unknown = [b for b in v if b not in available_bots]
+            if unknown:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Unknown bot(s): {sorted(unknown)}",
+                )
 
     if "bot_overrides" in patch:
         v = patch["bot_overrides"]
