@@ -221,16 +221,31 @@ function Header({ onReset, configName }) {
         : '__custom__';
 
   const handleSetBots = async (preset) => {
-    if (preset.key === activeBotPreset || botPending) return;
+    if (botPending) return;
+    // Skip only when the preset AND its parallel-mode intent already
+    // match — so re-picking "both" still applies parallel mode if it
+    // somehow got left off.
+    const currentTest = adminCfg?.overrides?.test_mode === true;
+    const desiredTest = preset.bots === null;
+    if (preset.key === activeBotPreset && currentTest === desiredTest) {
+      return;
+    }
     setBotPending(true);
     try {
       // Every preset pins the widest config; the bot set is what
       // varies (null = both, [name] = that one narrowed down).
       // "Both" must NOT clear active_feedback_config — clearing it
       // reverts to the single-bot YAML default, which would drop v2.
+      //
+      // "Both" also means parallel mode: the two bots answer on
+      // independent histories with no preference selection (no Select
+      // button). A single bot has nothing to compare or select, so
+      // test_mode is cleared there for the normal streaming view.
+      const isBoth = preset.bots === null;
       await patchAdminConfig({
         active_feedback_config: widestFcName || null,
         active_bots: preset.bots, // null for "both", [name] otherwise
+        test_mode: isBoth ? true : null,
       });
       const cfg = await getAdminConfig();
       setAdminCfg(cfg);
