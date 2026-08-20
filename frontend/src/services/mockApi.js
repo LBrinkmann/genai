@@ -443,10 +443,31 @@ function _mockMergedConfig() {
   };
 }
 
+// The untouched YAML baseline (no overrides applied) — mirrors the
+// backend's `yaml_defaults`. "default" is single-bot, "comparison"
+// pairs both, matching config/experiment.yml.
+function _yamlDefaults() {
+  return {
+    bots: _AVAILABLE_BOTS.map((name) => ({
+      name,
+      display_name: _BOT_DISPLAY_NAMES[name] || name,
+    })),
+    feedback_configs: _AVAILABLE_FEEDBACK_CONFIGS.map((name) => ({
+      name,
+      bots:
+        name === 'comparison'
+          ? [..._AVAILABLE_BOTS]
+          : _AVAILABLE_BOTS.slice(0, 1),
+    })),
+    defaults: { config: _AVAILABLE_FEEDBACK_CONFIGS[0], log: false },
+  };
+}
+
 function _adminResponse() {
   return {
     merged: _mockMergedConfig(),
     overrides: { ..._mockOverrides },
+    yaml_defaults: _yamlDefaults(),
     available_feedback_configs: [..._AVAILABLE_FEEDBACK_CONFIGS],
     available_bots: [..._AVAILABLE_BOTS],
     updated_by: _mockUpdatedBy,

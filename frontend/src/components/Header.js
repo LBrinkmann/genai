@@ -5,6 +5,8 @@ import client, {
   resumeLLMEndpoint,
   pauseLLMEndpoint,
   setEndpointMode,
+  getAdminConfig,
+  patchAdminConfig,
 } from '../services/api';
 import useAdmin from '../hooks/useAdmin';
 import LoginModal from './LoginModal';
@@ -82,6 +84,9 @@ function Header({ onReset, configName }) {
   const [pendingBot, setPendingBot] = useState(null);
   const [confirmingPauseFor, setConfirmingPauseFor] =
     useState(null);
+  // Admin config snapshot — drives the "Model" bot-set toggle.
+  const [adminCfg, setAdminCfg] = useState(null);
+  const [botPending, setBotPending] = useState(false);
   const menuRef = useRef(null);
   const pollRef = useRef(null);
 
@@ -128,6 +133,15 @@ function Header({ onReset, configName }) {
     } catch {
       setEndpoints([]);
     }
+    // Bot-set state lives in the admin config overrides, separate
+    // from the endpoint list; fetch it alongside so the Model toggle
+    // reflects the current selection.
+    try {
+      const cfg = await getAdminConfig();
+      setAdminCfg(cfg);
+    } catch {
+      setAdminCfg(null);
+    }
   }, []);
 
   useEffect(() => {
@@ -165,6 +179,65 @@ function Header({ onReset, configName }) {
       // Leave as-is; the next poll reconciles.
     } finally {
       setModePending(false);
+    }
+  };
+
+  // ---- Model (which bots answer) toggle ---------------------------
+  //
+  // Presets over `active_bots`, mirroring the /admin page. Each preset
+  // pins the widest feedback config and then narrows it: narrowing
+  // alone can't select a bot the active config doesn't list (the
+  // single-bot public default), so we pin the widest config first to
+  // give the narrowing something to work from.
+  const availableBots = adminCfg?.available_bots || [];
+  const mergedBots = adminCfg?.merged?.bots || [];
+  const botLabel = (name) =>
+    mergedBots.find((b) => b.name === name)?.display_name || name;
+  const widestFcName = (
+    adminCfg?.yaml_defaults?.feedback_configs || []
+  )
+    .slice()
+    .sort((a, b) => (b.bots?.length || 0) - (a.bots?.length || 0))[0]
+    ?.name;
+  const botPresets = [
+    ...availableBots.map((name) => ({
+      key: name,
+      label: botLabel(name),
+      bots: [name],
+    })),
+    {
+      key: '__all__',
+      label: availableBots.map(botLabel).join(' + ') || 'All',
+      bots: null, // null = no override → every bot in the config
+    },
+  ];
+  const activeBots = adminCfg?.overrides?.active_bots;
+  const activeBotPreset =
+    !Array.isArray(activeBots) ||
+    activeBots.length === availableBots.length
+      ? '__all__'
+      : activeBots.length === 1
+        ? activeBots[0]
+        : '__custom__';
+
+  const handleSetBots = async (preset) => {
+    if (preset.key === activeBotPreset || botPending) return;
+    setBotPending(true);
+    try {
+      // Every preset pins the widest config; the bot set is what
+      // varies (null = both, [name] = that one narrowed down).
+      // "Both" must NOT clear active_feedback_config — clearing it
+      // reverts to the single-bot YAML default, which would drop v2.
+      await patchAdminConfig({
+        active_feedback_config: widestFcName || null,
+        active_bots: preset.bots, // null for "both", [name] otherwise
+      });
+      const cfg = await getAdminConfig();
+      setAdminCfg(cfg);
+    } catch {
+      // Next poll reconciles.
+    } finally {
+      setBotPending(false);
     }
   };
 
@@ -288,6 +361,36 @@ function Header({ onReset, configName }) {
                 >
                   Admin settings
                 </Link>
+                {botPresets.length > 1 && (
+                  <div className="border-t border-zinc-800 px-1 py-1">
+                    <div className="px-2 py-1.5">
+                      <div className="mb-1 text-[10px] uppercase tracking-wide text-zinc-500">
+                        Model
+                      </div>
+                      <div className="flex gap-1 rounded-lg bg-zinc-800/60 p-0.5">
+                        {botPresets.map((preset) => (
+                          <button
+                            key={preset.key}
+                            type="button"
+                            disabled={botPending}
+                            onClick={() => handleSetBots(preset)}
+                            className={`flex-1 rounded-md px-2 py-1 text-xs font-medium transition disabled:opacity-50 ${
+                              activeBotPreset === preset.key
+                                ? 'bg-white text-black'
+                                : 'text-zinc-300 hover:bg-zinc-700/60'
+                            }`}
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="mt-1 text-[10px] text-zinc-500">
+                        Which bot(s) answer. Both shows them
+                        side by side.
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {endpoints.length > 0 && (
                   <div className="border-t border-zinc-800 px-1 py-1">
                     <div className="px-2 py-1.5">

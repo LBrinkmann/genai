@@ -1,9 +1,28 @@
-{$CADDY_DOMAIN:chat.example.com} {
-	root * /srv/frontend
-	file_server
-	try_files {path} /index.html
-}
+# Single-origin config: the site sits behind Cloudflare (which
+# terminates TLS for genocide-ai.de), so Caddy serves plain HTTP on
+# :80 and proxies /api/* to the backend. This matches what is actually
+# deployed; the older two-domain (CADDY_DOMAIN / CADDY_API_DOMAIN)
+# setup is not used behind Cloudflare.
+:80 {
+	handle /api/* {
+		reverse_proxy backend:8000
+	}
+	handle {
+		root * /srv/frontend
 
-{$CADDY_API_DOMAIN:api.example.com} {
-	reverse_proxy backend:8000
+		# Content-hashed build assets (CRA emits /static/js/main.<hash>.js
+		# etc.) never change under a given name — cache them hard.
+		@static path /static/*
+		header @static Cache-Control "public, max-age=31536000, immutable"
+
+		# Everything else, above all index.html, must be revalidated on
+		# every load. Without this, a returning visitor keeps a stale
+		# index.html that points at the previous bundle, so a deploy is
+		# invisible until a manual hard refresh.
+		@app not path /static/*
+		header @app Cache-Control "no-cache"
+
+		file_server
+		try_files {path} /index.html
+	}
 }
