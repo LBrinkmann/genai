@@ -234,6 +234,10 @@ function Header({ onReset, configName }) {
       });
       const cfg = await getAdminConfig();
       setAdminCfg(cfg);
+      // Tell the chat page to reload its config so the new bot set
+      // takes effect immediately (a config-name change also starts a
+      // fresh session and clears the mixed-mode transcript).
+      window.dispatchEvent(new Event('genai:config-changed'));
     } catch {
       // Next poll reconciles.
     } finally {

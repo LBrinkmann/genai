@@ -8,8 +8,19 @@ export default function useConfig() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const configNameParam = searchParams.get('config') || 'default';
+  // An explicit ?config= pins a specific feedback config. Without one,
+  // we follow the server's *active* config: fetch the baseline, then
+  // honour its `defaults.config` (which the admin "which bots answer"
+  // toggle pins via active_feedback_config). This is what makes the
+  // toggle actually change how many bots the chat shows — otherwise
+  // the page is stuck on the single-bot "default" config regardless.
+  const explicitConfig = searchParams.get('config');
+  const configNameParam = explicitConfig || 'default';
   const logParam = searchParams.get('log');
+  // The config actually loaded (may differ from configNameParam when
+  // we follow defaults.config). Drives session naming + health polls.
+  const [activeConfigName, setActiveConfigName] =
+    useState(configNameParam);
 
   useEffect(() => {
     let cancelled = false;
@@ -18,9 +29,17 @@ export default function useConfig() {
       if (showSpinner) setLoading(true);
       setError(null);
       try {
-        const data = await fetchConfig(configNameParam);
+        let data = await fetchConfig(configNameParam);
+        // Follow the active config only when the URL didn't pin one.
+        if (!explicitConfig) {
+          const active = data?.defaults?.config;
+          if (active && active !== configNameParam) {
+            data = await fetchConfig(active);
+          }
+        }
         if (!cancelled) {
           setConfig(data);
+          setActiveConfigName(data?.name || configNameParam);
         }
       } catch (err) {
         if (!cancelled) {
@@ -46,11 +65,21 @@ export default function useConfig() {
     };
     document.addEventListener('visibilitychange', onVisible);
 
+    // Refetch immediately when the admin changes the active config in
+    // this same tab (e.g. the header "which bots answer" toggle), so
+    // the chat reflects the new bot set without a manual reload.
+    const onConfigChanged = () => loadConfig(false);
+    window.addEventListener('genai:config-changed', onConfigChanged);
+
     return () => {
       cancelled = true;
       document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener(
+        'genai:config-changed',
+        onConfigChanged
+      );
     };
-  }, [configNameParam]);
+  }, [configNameParam, explicitConfig]);
 
   const defaults = config?.defaults || {};
   const loggingEnabled =
@@ -74,7 +103,7 @@ export default function useConfig() {
     config,
     loading,
     error,
-    configName: configNameParam,
+    configName: activeConfigName,
     loggingEnabled,
     visibleLimit,
     contextLimit,

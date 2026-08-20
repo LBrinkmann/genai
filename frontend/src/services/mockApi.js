@@ -73,22 +73,37 @@ function randomDelay(min = 300, max = 1200) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function fetchConfig(_configName) {
-  // Mirrors the backend override layer: the admin toggles for
-  // `test_mode` and `active_bots` feed straight back into the config
-  // the chat page reads, so the whole flow is exercisable offline.
-  // `_mockOverrides` is declared further down; safe to read here since
-  // this only runs after module init.
+export async function fetchConfig(configName) {
+  // Model the backend per-config bot lists so the two-step config
+  // load (default → follow defaults.config) is exercisable offline:
+  //   "default"    → single bot (v1-equivalent)
+  //   "comparison" → both bots, side by side
+  // then narrow by the admin `active_bots` override, and report the
+  // active config via `defaults.config` (pinned by the admin's
+  // "which bots answer" toggle through active_feedback_config).
+  const name =
+    configName === 'comparison' ? 'comparison' : 'default';
+  const declared =
+    name === 'comparison'
+      ? MOCK_CONFIG.bots
+      : MOCK_CONFIG.bots.slice(0, 1);
   const requested = _mockOverrides.active_bots;
-  const filtered =
+  const narrowed =
     Array.isArray(requested) && requested.length
-      ? MOCK_CONFIG.bots.filter((b) => requested.includes(b.name))
-      : MOCK_CONFIG.bots;
+      ? declared.filter((b) => requested.includes(b.name))
+      : declared;
   return {
     ...MOCK_CONFIG,
+    name,
     // Never strand the chat with zero bots (matches the backend rule).
-    bots: filtered.length ? filtered : MOCK_CONFIG.bots,
+    bots: narrowed.length ? narrowed : declared,
     test_mode: _mockOverrides.test_mode === true,
+    defaults: {
+      ...MOCK_CONFIG.defaults,
+      config:
+        _mockOverrides.active_feedback_config ||
+        _AVAILABLE_FEEDBACK_CONFIGS[0],
+    },
   };
 }
 
