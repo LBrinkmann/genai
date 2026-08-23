@@ -3,7 +3,15 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import DateTime, Integer, String, UniqueConstraint, func
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -94,4 +102,65 @@ class ConfigOverride(Base):
     )
     updated_by: Mapped[Optional[str]] = mapped_column(
         String(64), nullable=True
+    )
+
+
+class ResponseFlag(Base):
+    """An admin-authored flag on a single bot response.
+
+    Identified logically by ``(session_id, message_index,
+    response_index)`` rather than by a FK to ``chat_messages_v1.id``:
+    ``POST /api/messages`` re-saves a turn by delete-then-insert, so
+    row ids are not stable across a selection or feedback update,
+    while the ``(session_id, index)`` pair is.
+
+    ``response_index`` is the position inside an assistant turn:
+      * comparison / parallel turns — the index into the ``content``
+        array (i.e. which bot's answer);
+      * single-bot turns — always ``0``.
+
+    ``response_text`` is a snapshot taken at flag time so the admin
+    list renders without joining the transcript, and still shows
+    something if logging was off when the turn happened.
+    """
+
+    __tablename__ = "response_flags_v1"
+    __table_args__ = (
+        UniqueConstraint(
+            "session_id",
+            "message_index",
+            "response_index",
+            name="uq_flag_session_message_response",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
+    session_id: Mapped[str] = mapped_column(String, index=True, nullable=False)
+    message_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    response_index: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0
+    )
+    bot_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    response_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    comment: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    resolved: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    created_by: Mapped[Optional[str]] = mapped_column(
+        String(64), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
+        nullable=False,
     )

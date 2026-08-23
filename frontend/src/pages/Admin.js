@@ -396,6 +396,12 @@ function Admin() {
               ← Back to chat
             </Link>
             <h1 className="text-base font-medium">Admin settings</h1>
+            <Link
+              to="/admin/flags"
+              className="text-xs text-zinc-400 hover:text-white"
+            >
+              Response flags →
+            </Link>
           </div>
           <div className="flex items-center gap-3 text-xs text-zinc-400">
             <span>

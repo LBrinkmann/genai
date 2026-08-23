@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import FeedbackPanel from './FeedbackPanel';
+import FlagButton from './FlagButton';
 import { SimultaneousEntropyMessage } from './effects/SimultaneousEntropyMessage';
 import { StreamingCanvasMessage } from './effects/StreamingCanvasMessage';
 
@@ -22,6 +23,11 @@ import { StreamingCanvasMessage } from './effects/StreamingCanvasMessage';
  * + 1s pause); the reduced-motion path fires ~250ms after. The component
  * must tolerate either delay by keeping the message rendered until the
  * callback fires.
+ *
+ * Admin flags (`adminMode`): a FlagButton is rendered next to every
+ * assistant response — never on user messages and never while a
+ * response is still streaming. With `adminMode` false nothing extra is
+ * rendered at all, so the participant surface is unchanged.
  */
 function MessageList({
   messages,
@@ -31,6 +37,10 @@ function MessageList({
   onFeedbackConfirm,
   visibleLimit = 3,
   testMode = false,
+  adminMode = false,
+  getFlag,
+  onSaveFlag,
+  onToggleResolved,
 }) {
   const endRef = useRef(null);
   const [evictedIds, setEvictedIds] = useState(() => new Set());
@@ -85,6 +95,33 @@ function MessageList({
     });
   }, [messages, visibleLimit]);
 
+  /**
+   * Flag control for one assistant response. Returns null outside
+   * admin mode so the participant DOM is untouched.
+   */
+  const renderFlag = (messageIndex, responseIndex, botName, text) => {
+    if (!adminMode) return null;
+    const flag = getFlag ? getFlag(messageIndex, responseIndex) : null;
+    return (
+      <FlagButton
+        flag={flag}
+        botName={botName}
+        responseText={text}
+        onSave={(comment) =>
+          onSaveFlag &&
+          onSaveFlag({
+            messageIndex,
+            responseIndex,
+            botName,
+            responseText: text,
+            comment,
+          })
+        }
+        onToggleResolved={(f) => onToggleResolved && onToggleResolved(f)}
+      />
+    );
+  };
+
   const handleEvicted = (msgIndex) => {
     setEvictedIds((prev) => {
       if (prev.has(msgIndex)) return prev;
@@ -110,7 +147,10 @@ function MessageList({
           ) {
             const selectedText = msg.content[msg.selected]?.text || '';
             return (
-              <div key={msg.index} className="flex w-full flex-col">
+              <div
+                key={msg.index}
+                className="relative flex w-full flex-col"
+              >
                 <SimultaneousEntropyMessage
                   content={selectedText}
                   textColor="#D4A864"
@@ -118,6 +158,16 @@ function MessageList({
                   evict={evict}
                   onEvicted={() => handleEvicted(msg.index)}
                 />
+                {adminMode && !evict && (
+                  <div className="mb-1 flex justify-start">
+                    {renderFlag(
+                      msg.index,
+                      msg.selected,
+                      msg.content[msg.selected]?.bot,
+                      selectedText
+                    )}
+                  </div>
+                )}
                 <div className="mb-2">
                   <FeedbackPanel
                     categories={feedbackCategories}
@@ -145,8 +195,20 @@ function MessageList({
                 {msg.content.map((resp, idx) => (
                   <div
                     key={idx}
-                    className="flex-1 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4"
+                    className={`${
+                      adminMode ? 'relative ' : ''
+                    }flex-1 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4`}
                   >
+                    {adminMode && (
+                      <div className="absolute right-2 top-2">
+                        {renderFlag(
+                          msg.index,
+                          idx,
+                          resp.bot,
+                          resp.text
+                        )}
+                      </div>
+                    )}
                     <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
                       {resp.bot}
                     </p>
@@ -167,14 +229,8 @@ function MessageList({
                 key={msg.index}
                 className="mb-4 flex w-full flex-col gap-2"
               >
-                {msg.content.map((resp, idx) => (
-                  <div
-                    key={idx}
-                    className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4"
-                  >
-                    <p className="mb-3 whitespace-pre-wrap text-sm text-zinc-200">
-                      {resp.text}
-                    </p>
+                {msg.content.map((resp, idx) => {
+                  const selectButton = (
                     <button
                       type="button"
                       onClick={() =>
@@ -184,8 +240,31 @@ function MessageList({
                     >
                       Select
                     </button>
-                  </div>
-                ))}
+                  );
+                  return (
+                    <div
+                      key={idx}
+                      className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4"
+                    >
+                      <p className="mb-3 whitespace-pre-wrap text-sm text-zinc-200">
+                        {resp.text}
+                      </p>
+                      {adminMode ? (
+                        <div className="flex items-center gap-2">
+                          {selectButton}
+                          {renderFlag(
+                            msg.index,
+                            idx,
+                            resp.bot,
+                            resp.text
+                          )}
+                        </div>
+                      ) : (
+                        selectButton
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             );
           }
@@ -209,6 +288,34 @@ function MessageList({
                 textColor={color}
                 textAlign={align}
               />
+            );
+          }
+
+          // The message body is canvas-rendered, so the flag control
+          // cannot live inside it: wrap the bubble and put the button
+          // in a row underneath, on the message's own side.
+          if (adminMode && !isUser && !evict) {
+            return (
+              <div
+                key={msg.index}
+                className="relative flex w-full flex-col"
+              >
+                <SimultaneousEntropyMessage
+                  content={msg.content}
+                  textColor={color}
+                  textAlign={align}
+                  evict={evict}
+                  onEvicted={() => handleEvicted(msg.index)}
+                />
+                <div className="mb-1 flex justify-start">
+                  {renderFlag(
+                    msg.index,
+                    0,
+                    msg.bot_ids?.[0],
+                    msg.content
+                  )}
+                </div>
+              </div>
             );
           }
 

@@ -12,6 +12,8 @@ import useConfig from '../hooks/useConfig';
 import useSession from '../hooks/useSession';
 import useChat from '../hooks/useChat';
 import useEndpoints from '../hooks/useEndpoints';
+import useAdmin from '../hooks/useAdmin';
+import useFlags from '../hooks/useFlags';
 import { saveMessage } from '../services/api';
 
 /**
@@ -153,6 +155,16 @@ function ChatPage() {
     testMode,
   });
 
+  // Admin-only response flags. `useAdmin` hydrates from the session
+  // cookie; until it reports authenticated the flag hook is inert and
+  // the chat surface renders exactly as it does for participants.
+  const { authenticated } = useAdmin();
+  const {
+    getFlag,
+    saveFlag,
+    toggleResolved: toggleFlagResolved,
+  } = useFlags({ sessionId, enabled: authenticated });
+
   const [sessionError, setSessionError] = useState(null);
   const reducedMotion = useReducedMotion();
   const {
@@ -276,6 +288,10 @@ function ChatPage() {
         mainPreferenceFeedback={mainPreferenceFeedback}
         onFeedbackConfirm={handleFeedbackConfirm}
         visibleLimit={visibleLimit}
+        adminMode={authenticated}
+        getFlag={getFlag}
+        onSaveFlag={saveFlag}
+        onToggleResolved={toggleFlagResolved}
       />
       {sessionError && (
         <Alert

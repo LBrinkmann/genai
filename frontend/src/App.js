@@ -9,6 +9,7 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsAndConditions from './pages/TermsAndConditions';
 import Background from './pages/Background';
 import Admin from './pages/Admin';
+import AdminFlags from './pages/AdminFlags';
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
           <Route path="/terms" element={<TermsAndConditions />} />
           <Route path="/background" element={<Background />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/admin/flags" element={<AdminFlags />} />
         </Routes>
       </BrowserRouter>
     </ThemeProvider>

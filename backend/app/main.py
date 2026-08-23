@@ -14,6 +14,7 @@ from app.routes.chat import router as chat_router
 from app.routes.config import router as config_router
 from app.routes.endpoints import router as endpoints_router
 from app.routes.export import router as export_router
+from app.routes.flags import router as flags_router
 from app.routes.sessions import router as sessions_router
 
 
@@ -44,6 +45,7 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(admin_router)
+app.include_router(flags_router)
 app.include_router(config_router)
 app.include_router(endpoints_router)
 app.include_router(chat_router)

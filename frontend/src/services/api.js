@@ -348,4 +348,51 @@ export async function deleteAdminConfig() {
   return response.data;
 }
 
+// ---- Admin response flags ---------------------------------------
+// All flag endpoints are admin-only (admin_session cookie). A flag is
+// keyed logically by (session_id, message_index, response_index); the
+// POST is an upsert, so re-flagging the same response edits it.
+
+export async function createFlag(flag) {
+  if (USE_MOCK) return mock.createFlag(flag);
+  const response = await realClient.post('/api/admin/flags', flag);
+  return response.data;
+}
+
+// `status` is one of 'all' | 'open' | 'resolved'. Pass `sessionId` to
+// scope the query to one conversation — that is the call the chat page
+// makes so already-flagged responses render filled.
+export async function listFlags({
+  status = 'all',
+  sessionId = null,
+} = {}) {
+  if (USE_MOCK) return mock.listFlags({ status, sessionId });
+  const params = { status };
+  if (sessionId) params.session_id = sessionId;
+  const response = await realClient.get('/api/admin/flags', {
+    params,
+  });
+  return response.data;
+}
+
+export async function updateFlag(flagId, patch) {
+  if (USE_MOCK) return mock.updateFlag(flagId, patch);
+  const response = await realClient.patch(
+    `/api/admin/flags/${encodeURIComponent(flagId)}`,
+    patch
+  );
+  return response.data;
+}
+
+// Returns { flag, session, messages } — the full transcript that
+// produced the flagged response. `session` is null and `messages` is
+// empty when the conversation was never logged.
+export async function getFlagContext(flagId) {
+  if (USE_MOCK) return mock.getFlagContext(flagId);
+  const response = await realClient.get(
+    `/api/admin/flags/${encodeURIComponent(flagId)}/context`
+  );
+  return response.data;
+}
+
 export default client;

@@ -540,3 +540,92 @@ export async function deleteAdminConfig() {
   _mockUpdatedBy = _mockUser || 'admin';
   return _adminResponse();
 }
+
+// ---- Admin response flags ---------------------------------------
+// In-memory store mirroring `response_flags_v1`. Keyed logically by
+// (session_id, message_index, response_index) exactly like the
+// backend, so createFlag is an upsert here too.
+
+let _mockFlags = [];
+let _mockFlagId = 1;
+
+function _flagKey(f) {
+  return `${f.session_id}:${f.message_index}:${f.response_index ?? 0}`;
+}
+
+export async function createFlag(flag) {
+  await randomDelay(50, 150);
+  const now = new Date().toISOString();
+  const incoming = { ...flag, response_index: flag.response_index ?? 0 };
+  const existing = _mockFlags.find(
+    (f) => _flagKey(f) === _flagKey(incoming)
+  );
+  if (existing) {
+    existing.comment = incoming.comment ?? existing.comment;
+    existing.bot_name = incoming.bot_name ?? existing.bot_name;
+    existing.response_text =
+      incoming.response_text ?? existing.response_text;
+    existing.updated_at = now;
+    return { ...existing };
+  }
+  const created = {
+    id: _mockFlagId++,
+    session_id: incoming.session_id,
+    message_index: incoming.message_index,
+    response_index: incoming.response_index,
+    bot_name: incoming.bot_name ?? null,
+    response_text: incoming.response_text ?? null,
+    comment: incoming.comment || '',
+    resolved: false,
+    created_by: _mockUser || 'admin',
+    created_at: now,
+    updated_at: now,
+  };
+  _mockFlags.push(created);
+  return { ...created };
+}
+
+export async function listFlags({
+  status = 'all',
+  sessionId = null,
+} = {}) {
+  await randomDelay(50, 150);
+  return _mockFlags
+    .filter((f) => (sessionId ? f.session_id === sessionId : true))
+    .filter((f) => {
+      if (status === 'open') return !f.resolved;
+      if (status === 'resolved') return f.resolved;
+      return true;
+    })
+    .slice()
+    .sort((a, b) => b.id - a.id)
+    .map((f) => ({ ...f }));
+}
+
+export async function updateFlag(flagId, patch) {
+  await randomDelay(50, 150);
+  const flag = _mockFlags.find((f) => f.id === Number(flagId));
+  if (!flag) {
+    const err = new Error('Flag not found');
+    err.response = { status: 404, data: { detail: 'Flag not found' } };
+    throw err;
+  }
+  if (patch && patch.comment !== undefined) flag.comment = patch.comment;
+  if (patch && patch.resolved !== undefined)
+    flag.resolved = patch.resolved;
+  flag.updated_at = new Date().toISOString();
+  return { ...flag };
+}
+
+export async function getFlagContext(flagId) {
+  await randomDelay(50, 150);
+  const flag = _mockFlags.find((f) => f.id === Number(flagId));
+  if (!flag) {
+    const err = new Error('Flag not found');
+    err.response = { status: 404, data: { detail: 'Flag not found' } };
+    throw err;
+  }
+  // The mock never persists a transcript, so this exercises the
+  // "session was not logged" branch of the detail view.
+  return { flag: { ...flag }, session: null, messages: [] };
+}

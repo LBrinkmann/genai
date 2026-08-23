@@ -113,3 +113,87 @@ class AdminConfigResponse(BaseModel):
     available_bots: list[str]
     updated_by: Optional[str] = None
     updated_at: Optional[datetime] = None
+
+
+class FlagCreate(BaseModel):
+    """POST body for ``/api/admin/flags`` — upsert a response flag.
+
+    Keyed logically on ``(session_id, message_index, response_index)``.
+    ``bot_name`` / ``response_text`` are a snapshot of the flagged
+    response so the admin list renders without the transcript.
+    """
+
+    session_id: str
+    message_index: int
+    response_index: int = 0
+    bot_name: Optional[str] = None
+    response_text: Optional[str] = None
+    comment: str = ""
+
+
+class FlagPatch(BaseModel):
+    """PATCH body for ``/api/admin/flags/{id}``.
+
+    Both fields optional; only the keys present in the request body are
+    applied to the stored flag.
+    """
+
+    comment: Optional[str] = None
+    resolved: Optional[bool] = None
+
+    model_config = {"extra": "forbid"}
+
+
+class FlagResponse(BaseModel):
+    """A stored response flag, as returned by every flag route."""
+
+    id: int
+    session_id: str
+    message_index: int
+    response_index: int
+    bot_name: Optional[str] = None
+    response_text: Optional[str] = None
+    comment: str = ""
+    resolved: bool = False
+    created_by: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class FlagSessionInfo(BaseModel):
+    """Session metadata attached to a flag's context response."""
+
+    session_id: str
+    user_id: str
+    feedback_config_name: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class FlagContextMessage(BaseModel):
+    """One transcript message in a flag's context response."""
+
+    index: int
+    role: str
+    content: Any = None
+    bot_ids: Any = None
+    feedback: Any = None
+    selected: Optional[int] = None
+    timestamp: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class FlagContextResponse(BaseModel):
+    """A flag plus the full transcript of the session it points at.
+
+    ``session`` is ``None`` and ``messages`` empty when the session was
+    never logged — the flag's own snapshot is then all that survives.
+    """
+
+    flag: FlagResponse
+    session: Optional[FlagSessionInfo] = None
+    messages: list[FlagContextMessage] = Field(default_factory=list)
